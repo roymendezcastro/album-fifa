@@ -244,7 +244,7 @@
     <h2 class="no-print">Mi lista ordenada</h2>
     <div class="row no-print">
       <button class="primary" id="btnPrintList">Imprimir mi lista</button>
-      <button id="btnCopy" class="green">Copiar para compartir por mensaje</button>
+      <button id="btnCopy" class="green">Compartir mi lista por mensaje</button>
     </div>
     <div id="summary" class="chips"></div>
     <div id="teams" class="teams"></div>
@@ -259,9 +259,9 @@
       <p class="hint">Envía tu lista y carga la de otra persona para ver qué pueden intercambiar.</p>
 
       <h2 style="margin-top:24px">Enviar mis datos</h2>
-      <p class="hint">Toca el botón y pega el texto en WhatsApp para tu amigo/a.</p>
+      <p class="hint">Toca el botón: en el celular abre el menú para compartir (WhatsApp, etc.); en computadora copia el texto.</p>
       <div class="row">
-        <button id="btnShare" class="green">Copiar mi lista para enviar</button>
+        <button id="btnShare" class="green">Compartir mi lista para enviar</button>
       </div>
 
       <h2 style="margin-top:24px">Cargar la información de otra persona</h2>
@@ -282,7 +282,7 @@
       <h2 style="margin-top:24px">Compartir</h2>
       <div class="row">
         <button class="primary" id="btnPrintCruce">Imprimir intercambio</button>
-        <button id="btnCopyCruce" class="green">Copiar para enviar por mensaje</button>
+        <button id="btnCopyCruce" class="green">Compartir intercambio por mensaje</button>
       </div>
     </div>
   </section>
@@ -766,11 +766,13 @@ function buildSummary(mode){
   if (mode === "cruce" || mode === "both"){
     if (lastCruce){
       var Aa = getMyName() || "Yo", B = getOtherName() || "La otra persona";
+      var nDoy = countAll(lastCruce.leDoy), nDa = countAll(lastCruce.meDa);
       parts.push(album + " — Intercambio\nEntre: " + Aa + " y " + B +
         "\nFecha: " + nowText() +
+        "\n" + Aa + " entrega " + nDoy + " · recibe " + nDa +
         "\n" + NOTE_SHORT +
-        "\n\n" + Aa + " le da a " + B + ":\n" + (mapLines(lastCruce.leDoy) || "—") +
-        "\n\n" + B + " le da a " + Aa + ":\n" + (mapLines(lastCruce.meDa) || "—"));
+        "\n\n" + Aa + " le da a " + B + " (" + nDoy + "):\n" + (mapLines(lastCruce.leDoy) || "—") +
+        "\n\n" + B + " le da a " + Aa + " (" + nDa + "):\n" + (mapLines(lastCruce.meDa) || "—"));
     } else if (mode === "cruce"){
       parts.push("No hay intercambio calculado. Pega la lista de la otra persona y pulsa “Calcular intercambio”.");
     }
@@ -829,8 +831,20 @@ function doCopy(txt, btn){
     fallback();
   }
 }
-function copySummary(mode, btnId){ doCopy(buildSummary(mode), $(btnId)); }
-function copyShare(){ doCopy(buildShareList(), $("btnShare")); }
+// En celular abre el menú nativo de compartir (WhatsApp, etc.);
+// en escritorio (sin navigator.share) copia al portapapeles.
+function shareOrCopy(txt, btn){
+  if (navigator.share){
+    navigator.share({ text: txt }).then(function(){}, function(e){
+      if (e && e.name === "AbortError") return;   // el usuario canceló
+      doCopy(txt, btn);
+    });
+  } else {
+    doCopy(txt, btn);
+  }
+}
+function copySummary(mode, btnId){ shareOrCopy(buildSummary(mode), $(btnId)); }
+function copyShare(){ shareOrCopy(buildShareList(), $("btnShare")); }
 function printDoc(mode){ document.body.setAttribute("data-print", mode); window.print(); }
 
 // ---- Modelo → vistas ----
