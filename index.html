@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gestor de Álbum FIFA 2026</title>
+<style>
+  :root{
+    --bg:#0f172a; --card:#ffffff; --ink:#0f172a; --muted:#64748b;
+    --line:#e2e8f0; --accent:#1d4ed8; --falta:#b45309; --repe:#15803d;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+    background:#f1f5f9; color:var(--ink); line-height:1.4;
+  }
+  header.page{
+    background:var(--bg); color:#fff; padding:20px 24px;
+  }
+  header.page h1{margin:0 0 4px; font-size:20px}
+  header.page p{margin:0; color:#cbd5e1; font-size:13px}
+  main{max-width:1100px; margin:0 auto; padding:20px 16px 60px}
+  section.block{
+    background:var(--card); border:1px solid var(--line); border-radius:10px;
+    padding:16px; margin:0 0 18px;
+  }
+  section.block h2{margin:0 0 4px; font-size:16px}
+  .hint{color:var(--muted); font-size:12px; margin:0 0 10px}
+  textarea{
+    width:100%; min-height:140px; resize:vertical; padding:10px;
+    border:1px solid var(--line); border-radius:8px; font-family:ui-monospace,
+    "Cascadia Code",Consolas,monospace; font-size:12px; color:var(--ink);
+  }
+  .row{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:10px}
+  button,select{
+    font:inherit; font-size:14px; padding:11px 16px; border-radius:8px;
+    border:1px solid var(--line); background:#fff; color:var(--ink); cursor:pointer;
+  }
+  button.primary{background:var(--accent); border-color:var(--accent); color:#fff}
+  button.primary:hover{filter:brightness(1.06)}
+  button:hover{background:#f8fafc}
+  button.primary:hover{background:var(--accent)}
+  button.green{background:#16a34a; border-color:#16a34a; color:#fff}
+  button.green:hover{background:#15803d}
+  button:disabled{opacity:.45; cursor:not-allowed; filter:none}
+  button:disabled:hover{background:#fff}
+  button.primary:disabled{background:var(--accent)}
+  @media (max-width:700px){
+    .row button,.row select{flex:1 1 auto}
+  }
+  .chips{display:flex; flex-wrap:wrap; gap:8px; margin:6px 0 0}
+  .chip{
+    background:#eff6ff; border:1px solid #bfdbfe; color:#1e40af;
+    border-radius:999px; padding:3px 10px; font-size:12px; font-weight:600;
+  }
+  .stats{display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:6px}
+  @media (max-width:700px){.stats{grid-template-columns:repeat(2,1fr)}}
+  .stat{
+    background:#f8fafc; border:1px solid var(--line); border-radius:10px;
+    padding:12px 14px; text-align:center;
+  }
+  .stat .n{font-size:26px; font-weight:800; line-height:1}
+  .stat .l{font-size:11px; color:var(--muted); margin-top:5px; text-transform:uppercase; letter-spacing:.04em}
+  .stat.f .n{color:var(--falta)} .stat.r .n{color:var(--repe)} .stat.a .n{color:var(--accent)}
+  .panels{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px}
+  @media (max-width:700px){.panels{grid-template-columns:1fr}}
+  .panel h3{margin:0 0 8px; font-size:13px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em}
+  .bar{display:flex; align-items:center; gap:8px; margin:4px 0; font-size:12.5px}
+  .bar .bname{flex:0 0 150px; font-weight:600; font-size:11.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .bar .btrack{flex:1; background:#eef2f7; border-radius:6px; height:16px; overflow:hidden}
+  .bar .bfill{height:100%; border-radius:6px}
+  .bar.f .bfill{background:var(--falta)} .bar.r .bfill{background:var(--repe)}
+  .bar .bval{flex:0 0 26px; text-align:right; font-weight:700; font-variant-numeric:tabular-nums}
+  .tags{display:flex; flex-wrap:wrap; gap:6px; margin-top:4px}
+  .tag{background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46; border-radius:6px; padding:3px 8px; font-size:12px; font-weight:600}
+  .prog{margin:2px 0 14px}
+  .progtop{display:flex; justify-content:space-between; align-items:baseline; font-weight:700; margin-bottom:6px}
+  .progtop b{font-size:22px; color:var(--accent)}
+  .progbar{background:#eef2f7; border-radius:999px; height:16px; overflow:hidden}
+  .progbar>span{display:block; height:100%; border-radius:999px; background:linear-gradient(90deg,var(--accent),#16a34a)}
+  .progsub{font-size:12px; color:var(--muted); margin-top:6px}
+  .modebar{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:4px 0 12px}
+  .modebar .mlabel{font-size:12px; color:var(--muted); font-weight:600}
+  .mode{padding:9px 14px; border:1px solid var(--line); border-radius:999px; background:#fff; cursor:pointer; font:inherit; font-size:13px; font-weight:600}
+  .mode.add.on{background:#dcfce7; border-color:#16a34a; color:#166534}
+  .mode.sub.on{background:#fee2e2; border-color:#dc2626; color:#991b1b}
+  .seclist{margin-top:6px}
+  .sec{margin:0 0 14px}
+  .sec h4{margin:0 0 6px; font-size:13px; display:flex; align-items:center; gap:6px}
+  .sec .scount{font-weight:600; color:var(--muted); font-size:11px}
+  .grid{display:flex; flex-wrap:wrap; gap:6px}
+  .cell{
+    position:relative; min-width:36px; height:36px; padding:0 6px;
+    display:flex; align-items:center; justify-content:center;
+    border-radius:8px; border:1px solid; font-size:13px; font-weight:700;
+    cursor:pointer; user-select:none; -webkit-tap-highlight-color:transparent;
+  }
+  .cell.c0{background:#fef2f2; border-color:#fca5a5; color:#991b1b}
+  .cell.c1{background:#ecfdf5; border-color:#86efac; color:#166534}
+  .cell.c2{background:#eff6ff; border-color:#93c5fd; color:#1e40af}
+  .cell .bdg{
+    position:absolute; top:-6px; right:-6px; background:var(--accent); color:#fff;
+    font-size:10px; font-weight:700; border-radius:999px; padding:1px 5px; line-height:1.3;
+  }
+  .gridlegend{display:flex; flex-wrap:wrap; gap:12px; font-size:12px; color:var(--muted); margin:2px 0 10px}
+  .gridlegend i{display:inline-block; width:12px; height:12px; border-radius:3px; border:1px solid; vertical-align:-1px; margin-right:4px}
+  .gridlegend .l0 i{background:#fef2f2; border-color:#fca5a5}
+  .gridlegend .l1 i{background:#ecfdf5; border-color:#86efac}
+  .gridlegend .l2 i{background:#eff6ff; border-color:#93c5fd}
+  .teams{column-count:2; column-gap:18px; margin-top:12px}
+  @media (max-width:700px){.teams{column-count:1}}
+  .team{
+    break-inside:avoid; -webkit-column-break-inside:avoid; page-break-inside:avoid;
+    border:1px solid var(--line); border-radius:8px; padding:8px 10px;
+    margin:0 0 10px; background:#fff;
+  }
+  .team .name{font-weight:700; font-size:14px; margin-bottom:3px}
+  .team .line{font-size:12.5px; margin:1px 0}
+  .lab{font-weight:600}
+  .lab.f{color:var(--falta)} .lab.r{color:var(--repe)}
+  .nums{color:var(--ink)}
+  .rp{display:none}
+  .bx{display:inline-block; width:9px; height:9px; border:1px solid #555; border-radius:2px; margin:0 1px; vertical-align:baseline}
+  .empty{color:var(--muted); font-size:13px; padding:6px 0}
+  .legend{font-size:12px; color:var(--muted); margin-top:8px}
+  .legend b.f{color:var(--falta)} .legend b.r{color:var(--repe)}
+  .printbar{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+  .ok{color:var(--repe)} .warn{color:var(--falta)}
+  .field{display:flex; flex-direction:column; gap:4px; margin:12px 0 0}
+  .field label{font-size:12px; color:var(--muted); font-weight:600}
+  .field input{padding:10px 12px; border:1px solid var(--line); border-radius:8px; font:inherit; font-size:14px}
+  .fl{font-size:1.18em; line-height:1}
+  .notice{font-size:12.5px; margin:0 0 12px; color:#92400e; background:#fffbeb; border:1px solid #fcd34d; border-radius:8px; padding:10px 12px; font-weight:600; line-height:1.5}
+  .credit{max-width:1100px; margin:0 auto; padding:14px 16px 34px; text-align:center; color:var(--muted); font-size:12px}
+  .tabs{position:sticky; top:0; z-index:5; display:flex; gap:4px; overflow-x:auto; background:#fff;
+    border-bottom:1px solid var(--line); padding:6px 8px; -webkit-overflow-scrolling:touch}
+  .tabs button{flex:0 0 auto; border:none; background:transparent; padding:11px 15px;
+    border-radius:8px 8px 0 0; font:inherit; font-size:14px; font-weight:700; color:var(--muted);
+    cursor:pointer; white-space:nowrap; -webkit-tap-highlight-color:transparent}
+  .tabs button.on{color:var(--accent); background:#eff6ff}
+  main section[data-tab]{display:none}
+  body[data-tab="inicio"] section[data-tab="inicio"],
+  body[data-tab="album"] section[data-tab="album"],
+  body[data-tab="lista"] section[data-tab="lista"],
+  body[data-tab="resumen"] section[data-tab="resumen"],
+  body[data-tab="intercambio"] section[data-tab="intercambio"]{display:block}
+  .printhead{display:none}
+  @media print{
+    body{background:#fff}
+    header.page,.no-print,#tabbar{display:none !important}
+    main{max-width:none; padding:0; margin:0}
+    main section[data-tab]{display:none !important}
+    #listaBlock,#cruceBlock{display:block !important}
+    section.block{border:none; padding:0; margin:0 0 10px; border-radius:0}
+    .printhead{display:block; margin:0 0 8px; border-bottom:2px solid #000; padding-bottom:4px}
+    .printhead h1{margin:0; font-size:16px}
+    .printhead p{margin:2px 0 0; font-size:11px; color:#333}
+    .teams{column-count:2; column-gap:14px}
+    .team{border:1px solid #999; margin-bottom:6px; padding:5px 7px}
+    .team .name{font-size:12px}
+    .team .line{font-size:11px}
+    .rs{display:none}
+    .rp{display:inline}
+    .bx{border-color:#000; width:11px; height:11px; margin:0 2px}
+    h2{font-size:13px; margin:0 0 6px}
+    @page{margin:12mm}
+    .credit{display:block; margin:14px 0 0; padding:8px 0 0; border-top:1px solid #999; color:#333; font-size:10px; text-align:center}
+    body[data-print="mylist"] #cruceBlock{display:none !important}
+    body[data-print="cruce"] #listaBlock{display:none !important}
+    body[data-print="cruce"] #cruceInputs{display:none !important}
+  }
+</style>
+</head>
+<body data-print="mylist">
+
+<header class="page">
+  <h1>Gestor de Álbum FIFA 2026</h1>
+  <p>Controla tu álbum: lo que tienes, repetidas y faltantes, tu progreso y los intercambios.</p>
+</header>
+
+<nav class="tabs no-print" id="tabbar">
+  <button data-go="inicio">Inicio</button>
+  <button data-go="album">Mi álbum</button>
+  <button data-go="lista">Mi lista</button>
+  <button data-go="resumen">Resumen</button>
+  <button data-go="intercambio">Intercambio</button>
+</nav>
+
+<main>
+
+  <section class="block no-print" data-tab="inicio" id="inputBlock">
+    <h2>Bienvenido</h2>
+    <p class="hint">Esta es tu herramienta principal para <b>gestionar y controlar tu álbum</b>: marca lo que tienes, lo repetido y lo que falta, mira tu progreso e intercambia. <b>Figuritas App es opcional</b>, solo sirve para importar tu estado inicial.</p>
+    <div class="field">
+      <label for="myName">Mi nombre (propietario)</label>
+      <input id="myName" type="text" placeholder="Ej. Roy Méndez Castro" autocomplete="name">
+    </div>
+
+    <h2 style="margin-top:24px">Empezar desde cero</h2>
+    <p class="hint">Comienza con todas las postales en “Falta” y ve marcándolas tú.</p>
+    <div class="row">
+      <button id="btnZero" class="green" title="Borra TODO tu álbum y lo deja en blanco. Pide confirmación.">Empezar desde cero</button>
+    </div>
+
+    <h2 style="margin-top:24px">Importar información base</h2>
+    <p class="hint">Pega aquí el texto y toca <b>Importar</b>. Funciona con el texto generado en <b>Gestor de Álbum FIFA 2026</b> (botón “Copiar para compartir por mensaje” de la pestaña <b>Mi lista</b>) o con el mensaje de <b>Figuritas App</b> (opción “Faltantes y repetidas”). ⬇</p>
+    <textarea id="myInput" placeholder="⬇ Pega aquí el texto de Gestor de Álbum FIFA 2026 o de Figuritas App…"></textarea>
+    <div class="row">
+      <button id="btnImport" class="green" disabled>Importar</button>
+    </div>
+
+    <h2 style="margin-top:24px">Respaldo</h2>
+    <p class="hint">Tu respaldo es el texto de tu lista: ve a la pestaña <b>Mi lista</b>, toca <b>“Copiar para compartir por mensaje”</b> y guárdalo donde quieras (WhatsApp, notas, correo). Conserva también <b>cuántas repetidas</b> tienes de cada una. Para restaurar, pega ese texto arriba en <b>Importar información base</b> y toca <b>Importar</b>. Recomendado: guarda una copia cada cierto tiempo y antes de cambiar de teléfono.</p>
+  </section>
+
+  <section class="block no-print" data-tab="album" id="albumBlock">
+    <h2>Mi álbum — toca una postal para editar</h2>
+    <div class="modebar">
+      <span class="mlabel">Al tocar:</span>
+      <button class="mode add on" id="btnAdd">+ Conseguí una</button>
+      <button class="mode sub" id="btnSub">− Di una repetida</button>
+    </div>
+    <div class="gridlegend">
+      <span class="l0"><i></i>Falta</span>
+      <span class="l1"><i></i>La tengo</span>
+      <span class="l2"><i></i>Repetida (con sobrantes)</span>
+    </div>
+    <p class="notice">Registra aquí manualmente cada <b>entrada (+)</b> y <b>salida (−)</b> solo cuando el intercambio realmente ocurra. El cruce es una propuesta: las repetidas pueden ya no estar disponibles o el trato no concretarse al 100%.</p>
+    <div id="albumGrid" class="seclist"></div>
+  </section>
+
+  <section class="block no-print" data-tab="resumen" id="dashboardBlock">
+    <h2>Resumen y progreso</h2>
+    <div id="dashProgress"></div>
+    <div id="dashStats" class="stats"></div>
+    <div id="dashPanels" class="panels"></div>
+  </section>
+
+  <section class="block" data-tab="lista" id="listaBlock">
+    <div class="printhead">
+      <h1 id="printTitle">Mi lista — Álbum FIFA 2026</h1>
+      <p id="printMeta"></p>
+    </div>
+    <h2 class="no-print">Mi lista ordenada</h2>
+    <div class="row no-print">
+      <button class="primary" id="btnPrintList">Imprimir mi lista</button>
+      <button id="btnCopy" class="green">Copiar para compartir por mensaje</button>
+    </div>
+    <div id="summary" class="chips"></div>
+    <div id="teams" class="teams"></div>
+    <p class="legend no-print">
+      <b class="f">Faltan</b> = me faltan &nbsp;·&nbsp; <b class="r">Repetidas</b> = las que tengo de sobra (para dar)
+    </p>
+  </section>
+
+  <section class="block" data-tab="intercambio" id="cruceBlock">
+    <div id="cruceInputs" class="no-print">
+      <h2>Intercambio</h2>
+      <p class="hint">Envía tu lista y carga la de otra persona para ver qué pueden intercambiar.</p>
+
+      <h2 style="margin-top:24px">Enviar mis datos</h2>
+      <p class="hint">Toca el botón y pega el texto en WhatsApp para tu amigo/a.</p>
+      <div class="row">
+        <button id="btnShare" class="green">Copiar mi lista para enviar</button>
+      </div>
+
+      <h2 style="margin-top:24px">Cargar la información de otra persona</h2>
+      <p class="hint">Pega lo que te enviaron desde <b>Gestor de Álbum FIFA 2026</b> o desde <b>Figuritas App</b>. ⬇</p>
+      <div class="field">
+        <label for="otherName">Nombre de la otra persona</label>
+        <input id="otherName" type="text" placeholder="Ej. Juan Pérez">
+      </div>
+      <textarea id="otherInput" placeholder="⬇ Pega aquí la lista desde Gestor de Álbum FIFA 2026 o desde Figuritas App…"></textarea>
+
+      <h2 style="margin-top:24px">Calcular intercambio</h2>
+      <div class="row">
+        <button id="btnCruce" class="primary">Calcular intercambio</button>
+      </div>
+    </div>
+    <div id="cruceResult"></div>
+    <div class="no-print" id="cruceActions" style="display:none">
+      <h2 style="margin-top:24px">Compartir</h2>
+      <div class="row">
+        <button class="primary" id="btnPrintCruce">Imprimir intercambio</button>
+        <button id="btnCopyCruce" class="green">Copiar para enviar por mensaje</button>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="credit">© 2026 — Generado con la herramienta de <b>Roy Méndez Castro</b></footer>
+
+<script>
+"use strict";
+
+var LS_MYNAME = "fifa26_myname", LS_OTHERNAME = "fifa26_othername",
+    LS_MODEL = "fifa26_model", LS_TAB = "fifa26_tab";
+
+// Códigos FIFA → nombre en español (para mostrar país + bandera).
+var NAMES = {
+  MEX:"México", RSA:"Sudáfrica", KOR:"Corea del Sur", CZE:"Rep. Checa",
+  CAN:"Canadá", BIH:"Bosnia y Herzegovina", QAT:"Catar", SUI:"Suiza",
+  BRA:"Brasil", MAR:"Marruecos", HAI:"Haití", SCO:"Escocia",
+  USA:"Estados Unidos", PAR:"Paraguay", AUS:"Australia", TUR:"Turquía",
+  GER:"Alemania", CUW:"Curazao", CIV:"Costa de Marfil", ECU:"Ecuador",
+  NED:"Países Bajos", JPN:"Japón", SWE:"Suecia", TUN:"Túnez",
+  BEL:"Bélgica", EGY:"Egipto", IRN:"Irán", NZL:"Nueva Zelanda",
+  ESP:"España", CPV:"Cabo Verde", KSA:"Arabia Saudita", URU:"Uruguay",
+  FRA:"Francia", SEN:"Senegal", IRQ:"Irak", NOR:"Noruega",
+  ARG:"Argentina", ALG:"Argelia", AUT:"Austria", JOR:"Jordania",
+  POR:"Portugal", COD:"Rep. Dem. del Congo", UZB:"Uzbekistán", COL:"Colombia",
+  ENG:"Inglaterra", CRO:"Croacia", GHA:"Ghana", PAN:"Panamá"
+};
+
+// Las 48 selecciones del álbum "Usa Méx Can 26" (20 figuritas cada una).
+var COUNTRY_CODES = ["MEX","RSA","KOR","CZE","CAN","BIH","QAT","SUI","BRA","MAR",
+"HAI","SCO","USA","PAR","AUS","TUR","GER","CUW","CIV","ECU","NED","JPN","SWE",
+"TUN","BEL","EGY","IRN","NZL","ESP","CPV","KSA","URU","FRA","SEN","IRQ","NOR",
+"ARG","ALG","AUT","JOR","POR","COD","UZB","COL","ENG","CRO","GHA","PAN"];
+
+// Bandera emoji por código (se ve en celular; en PC el navegador puede no dibujarla).
+var FLAGS = {
+  MEX:"🇲🇽", RSA:"🇿🇦", KOR:"🇰🇷", CZE:"🇨🇿", CAN:"🇨🇦", BIH:"🇧🇦", QAT:"🇶🇦",
+  SUI:"🇨🇭", BRA:"🇧🇷", MAR:"🇲🇦", HAI:"🇭🇹", SCO:"🏴󠁧󠁢󠁳󠁣󠁴󠁿", USA:"🇺🇸", PAR:"🇵🇾",
+  AUS:"🇦🇺", TUR:"🇹🇷", GER:"🇩🇪", CUW:"🇨🇼", CIV:"🇨🇮", ECU:"🇪🇨", NED:"🇳🇱",
+  JPN:"🇯🇵", SWE:"🇸🇪", TUN:"🇹🇳", BEL:"🇧🇪", EGY:"🇪🇬", IRN:"🇮🇷", NZL:"🇳🇿",
+  ESP:"🇪🇸", CPV:"🇨🇻", KSA:"🇸🇦", URU:"🇺🇾", FRA:"🇫🇷", SEN:"🇸🇳", IRQ:"🇮🇶",
+  NOR:"🇳🇴", ARG:"🇦🇷", ALG:"🇩🇿", AUT:"🇦🇹", JOR:"🇯🇴", POR:"🇵🇹", COD:"🇨🇩",
+  UZB:"🇺🇿", COL:"🇨🇴", ENG:"🏴󠁧󠁢󠁥󠁮󠁧󠁿", CRO:"🇭🇷", GHA:"🇬🇭", PAN:"🇵🇦"
+};
+
+function range(a,b){ var r=[]; for(var i=a;i<=b;i++) r.push(String(i)); return r; }
+
+// Estructura completa del álbum (994 postales).
+var SECTIONS = (function(){
+  var s = [
+    { id:"FWC_ESP", label:"FWC 🏆", nums:["00","1","2","3","4"] },
+    { id:"FWC_BAL", label:"FWC 🌎", nums:["5","6","7","8"] },
+    { id:"FWC_HIS", label:"FWC 📜", nums:range(9,19) }
+  ];
+  COUNTRY_CODES.forEach(function(code){
+    s.push({ id:code, label: code + " " + (FLAGS[code] || ""), nums: range(1,20) });
+  });
+  s.push({ id:"CC", label:"CC 🥤", nums:range(1,14) });
+  return s;
+})();
+var SEC_BY_ID = {};
+SECTIONS.forEach(function(x){ SEC_BY_ID[x.id] = x; });
+
+// Modelo: own["sid#num"] = cantidad (0/ausente=falta, 1=la tengo, ≥2=repetida).
+var model = (function(){
+  var m;
+  try { m = JSON.parse(localStorage.getItem(LS_MODEL)); } catch(e){ m = null; }
+  if (!m || typeof m !== "object" || typeof m.own !== "object") {
+    m = { v:1, album:"Usa Méx Can 26", own:{} };
+  }
+  if (!m.album) m.album = "Usa Méx Can 26";
+  if (!m.own) m.own = {};
+  return m;
+})();
+function saveModel(){ localStorage.setItem(LS_MODEL, JSON.stringify(model)); }
+function cKey(sid,num){ return sid + "#" + num; }
+function getCount(sid,num){ return model.own[cKey(sid,num)] || 0; }
+function setCount(sid,num,c){
+  var k = cKey(sid,num);
+  if (c <= 0) delete model.own[k]; else model.own[k] = c;
+}
+
+function $(id){ return document.getElementById(id); }
+
+function labelCode(label){ return String(label).trim().split(/\s+/)[0].toUpperCase(); }
+function clamp(v, lo, hi){ return v < lo ? lo : (v > hi ? hi : v); }
+
+var NOTE_LONG = "⚠ Esto es una propuesta de factibilidad, no un intercambio confirmado. " +
+  "Las repetidas pueden ya no estar disponibles y el trato puede no concretarse al 100%. " +
+  "Este cruce no modifica tu álbum: cuando hagas el intercambio real, registra a mano " +
+  "cada entrada (+) y salida (−) en «Mi álbum».";
+var NOTE_SHORT = "Propuesta de factibilidad — sujeta a disponibilidad. " +
+  "Registra manualmente las entradas/salidas reales en tu álbum.";
+
+// Separa una etiqueta ("MEX 🇲🇽") en bandera/emoji y nombre legible.
+function teamParts(label){
+  var code = labelCode(label);
+  var emoji = String(label).trim().slice(code.length).trim();
+  var name;
+  if (code === "FWC"){
+    if (emoji.indexOf("🏆") !== -1) name = "FWC · Especiales";
+    else if (emoji.indexOf("🌎") !== -1) name = "FWC · Balón y países";
+    else if (emoji.indexOf("📜") !== -1) name = "FWC · Historia";
+    else name = "FWC";
+  } else if (code === "CC"){
+    name = "Coca-Cola (CC)";
+  } else if (NAMES[code]){
+    name = NAMES[code] + " (" + code + ")";
+  } else {
+    name = label; emoji = "";
+  }
+  return { emoji: emoji, name: name };
+}
+function teamHTML(label){
+  var p = teamParts(label);
+  return (p.emoji ? '<span class="fl">' + p.emoji + '</span> ' : '') + esc(p.name);
+}
+function teamText(label){
+  var p = teamParts(label);
+  return (p.emoji ? p.emoji + ' ' : '') + p.name;
+}
+
+function getMyName(){ return (($("myName") && $("myName").value) || "").trim(); }
+function getOtherName(){ return (($("otherName") && $("otherName").value) || "").trim(); }
+function nowText(){ return new Date().toLocaleString("es"); }
+
+function sortNums(arr){
+  var uniq = Array.from(new Set(arr));
+  uniq.sort(function(a,b){
+    var na = parseInt(a,10), nb = parseInt(b,10);
+    var ia = isNaN(na), ib = isNaN(nb);
+    if(ia && ib) return a.localeCompare(b);
+    if(ia) return 1;
+    if(ib) return -1;
+    if(na !== nb) return na - nb;
+    return a.localeCompare(b);
+  });
+  return uniq;
+}
+
+// Parsea el mensaje de Figuritas App.
+function parseList(text){
+  var lines = (text || "").split(/\r?\n/);
+  var section = null;            // 'faltan' | 'repes'
+  var albumTitle = "";
+  var faltan = {}, repes = {};
+  var lastLabel = null;          // continuación si una línea larga se parte
+  var order = [];                // orden de aparición de equipos
+
+  for (var i = 0; i < lines.length; i++){
+    var line = lines[i].trim();
+    if (!line) continue;
+    if (/^Figuritas App\b/i.test(line) || /^INTERCAMBIO\b/i.test(line) || /^Gestor\b/i.test(line)) { section = null; lastLabel = null; continue; }
+    if (/^(Álbum|Album)\s*:/i.test(line)) { albumTitle = line.replace(/^[^:]*:\s*/, "").trim(); continue; }
+    if (/^Me faltan\s*:?\s*$/i.test(line))  { section = "faltan"; lastLabel = null; continue; }
+    if (/^Repetidas\s*:?\s*$/i.test(line))  { section = "repes";  lastLabel = null; continue; }
+    if (/^Descarga la app/i.test(line)) break;
+    if (/^(Generad[oa]\b|©)/i.test(line) || line.charAt(0) === "—" || /^-{2,}/.test(line)) break;
+    if (/^https?:\/\//i.test(line)) continue;
+
+    if (section === null){
+      if (!albumTitle && line.indexOf(":") === -1) albumTitle = line;
+      continue;
+    }
+
+    var bucket = section === "faltan" ? faltan : repes;
+    var idx = line.indexOf(":");
+
+    if (idx === -1){
+      if (lastLabel){
+        var more = line.split(",").map(function(s){return s.trim();}).filter(Boolean);
+        bucket[lastLabel] = (bucket[lastLabel] || []).concat(more);
+      }
+      continue;
+    }
+
+    var label = line.slice(0, idx).trim();
+    var rest  = line.slice(idx + 1).trim();
+    if (!label) continue;
+    var nums = rest.split(",").map(function(s){return s.trim();}).filter(Boolean);
+
+    if (order.indexOf(label) === -1) order.push(label);
+    bucket[label] = (bucket[label] || []).concat(nums);
+    lastLabel = label;
+  }
+
+  Object.keys(faltan).forEach(function(k){ faltan[k] = sortNums(faltan[k]); });
+  Object.keys(repes).forEach(function(k){ repes[k] = sortNums(repes[k]); });
+
+  return { albumTitle: albumTitle, faltan: faltan, repes: repes, order: order };
+}
+
+function countAll(map){
+  return Object.keys(map).reduce(function(t,k){ return t + map[k].length; }, 0);
+}
+
+function esc(s){
+  return String(s).replace(/[&<>"]/g, function(c){
+    return ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;" })[c];
+  });
+}
+
+function teamOrder(data){
+  // Une el orden de aparición con cualquier etiqueta sólo presente en un bucket.
+  var seen = {}, out = [];
+  function add(k){ if(!seen[k]){ seen[k]=1; out.push(k); } }
+  data.order.forEach(add);
+  Object.keys(data.faltan).forEach(add);
+  Object.keys(data.repes).forEach(add);
+  return out;
+}
+
+function renderMyList(data){
+  var title = data.albumTitle || "Álbum FIFA 2026";
+  $("printTitle").textContent = "Gestor de Álbum FIFA 2026 — " + title;
+  var prog = computeProgress(data);
+  var owner = getMyName() || "—";
+  $("printMeta").textContent = "Propietario: " + owner + " · " + nowText() +
+    " · Progreso: " + prog.pct + "% (tengo " + prog.have + " de " + prog.total + ")" +
+    " · Faltan: " + countAll(data.faltan) + " · Repetidas: " + countAll(data.repes);
+
+  var labels = teamOrder(data);
+  var nF = countAll(data.faltan), nR = countAll(data.repes);
+
+  $("summary").innerHTML =
+    '<span class="chip">' + esc(title) + '</span>' +
+    '<span class="chip">Equipos: ' + labels.length + '</span>' +
+    '<span class="chip">Me faltan: ' + nF + '</span>' +
+    '<span class="chip">Repetidas: ' + nR + '</span>';
+
+  if (!labels.length){
+    $("teams").innerHTML = '<p class="empty">Aún no hay datos. Pega tu lista y pulsa “Procesar”.</p>';
+    return;
+  }
+
+  var html = "";
+  labels.forEach(function(lab){
+    var f = data.faltan[lab] || [];
+    var r = data.repes[lab]  || [];
+    if (!f.length && !r.length) return;
+    html += '<div class="team"><div class="name">' + teamHTML(lab) + '</div>';
+    if (f.length) html += '<div class="line"><span class="lab f">Faltan:</span> <span class="nums">' + esc(f.join(", ")) + '</span></div>';
+    if (r.length){
+      var sid = msgSectionId(lab);
+      var rTxt = r.map(function(n){
+        var sob = sid ? getCount(sid, n) - 1 : 1;
+        if (sob < 1) sob = 1;
+        var sc = sob >= 2 ? esc(n) + "×" + sob : esc(n);
+        var bx = "";
+        for (var k = 0; k < sob; k++) bx += '<span class="bx"></span>';
+        return '<span class="rs">' + sc + '</span>' +
+               '<span class="rp">' + esc(n) + ' ' + bx + '</span>';
+      }).join(", ");
+      html += '<div class="line"><span class="lab r">Repetidas:</span> <span class="nums">' + rTxt + '</span></div>';
+    }
+    html += "</div>";
+  });
+  $("teams").innerHTML = html;
+}
+
+// Normaliza una lista (label→nums) a sid→{num:1}, robusto entre formatos.
+function normToSid(d){
+  var out = { faltan:{}, repes:{} };
+  ["faltan","repes"].forEach(function(kind){
+    Object.keys(d[kind] || {}).forEach(function(lab){
+      var sid = msgSectionId(lab);
+      if (!sid) return;
+      out[kind][sid] = out[kind][sid] || {};
+      d[kind][lab].forEach(function(tok){ out[kind][sid][parseNumTok(tok).num] = 1; });
+    });
+  });
+  return out;
+}
+function intersectSid(giverRepes, receiverFaltan){
+  var out = {};
+  Object.keys(giverRepes).forEach(function(sid){
+    if (!receiverFaltan[sid] || !SEC_BY_ID[sid]) return;
+    var common = Object.keys(giverRepes[sid]).filter(function(n){ return receiverFaltan[sid][n]; });
+    if (common.length){
+      common.sort(function(x,y){
+        var nx = parseInt(x,10), ny = parseInt(y,10);
+        return (nx - ny) || x.localeCompare(y);
+      });
+      out[SEC_BY_ID[sid].label] = common;
+    }
+  });
+  return out;
+}
+
+function renderCruceBlock(map, titleText, emptyText, cls){
+  var labels = Object.keys(map);
+  var total = countAll(map);
+  var h = '<h2>' + esc(titleText) + ' <span class="' + cls + '">(' + total + ')</span></h2>';
+  if (!labels.length){
+    return h + '<p class="empty">' + esc(emptyText) + '</p>';
+  }
+  h += '<div class="teams">';
+  labels.forEach(function(lab){
+    h += '<div class="team"><div class="name">' + teamHTML(lab) + '</div>' +
+         '<div class="line"><span class="nums">' + esc(map[lab].join(", ")) + '</span></div></div>';
+  });
+  h += '</div>';
+  return h;
+}
+
+function computeCruce(my, other){
+  var A = normToSid(my), B = normToSid(other);
+  return {
+    leDoy: intersectSid(A.repes, B.faltan),   // mis repes que la otra persona necesita
+    meDa:  intersectSid(B.repes, A.faltan)     // sus repes que yo necesito
+  };
+}
+
+function renderCruce(my, other){
+  var acts = $("cruceActions");
+  if (!other || (!Object.keys(other.faltan).length && !Object.keys(other.repes).length)){
+    $("cruceResult").innerHTML = '<p class="empty">Pega la lista de la otra persona y pulsa “Calcular intercambio”.</p>';
+    if (acts) acts.style.display = "none";
+    return;
+  }
+  if (acts) acts.style.display = "";
+  var c = computeCruce(my, other);
+  var leDoy = c.leDoy, meDa = c.meDa;
+  var A = getMyName() || "Yo";
+  var B = getOtherName() || "La otra persona";
+
+  var head =
+    '<div class="printhead"><h1>Intercambio — ' + esc(my.albumTitle || "Álbum FIFA 2026") + '</h1>' +
+    '<p>Entre: ' + esc(A) + ' y ' + esc(B) + ' · ' + esc(nowText()) +
+    ' · ' + esc(A) + ' da ' + countAll(leDoy) + ' · ' + esc(B) + ' da ' + countAll(meDa) +
+    '<br><span style="font-style:italic">' + esc(NOTE_SHORT) + '</span></p></div>';
+
+  $("cruceResult").innerHTML =
+    head +
+    '<div class="notice no-print">' + esc(NOTE_LONG) + '</div>' +
+    '<div class="cruce-side">' +
+      renderCruceBlock(leDoy, A + " le da a " + B, "No tienes repetidas que necesite.", "ok") +
+    '</div>' +
+    '<div class="cruce-side" style="margin-top:14px">' +
+      renderCruceBlock(meDa, B + " le da a " + A, "No tiene repetidas que necesites.", "warn") +
+    '</div>';
+}
+
+function rankTeams(map, topN){
+  var arr = Object.keys(map)
+    .filter(function(k){ return map[k].length; })
+    .map(function(k){ return { team:k, n:map[k].length }; });
+  arr.sort(function(a,b){ return b.n - a.n || a.team.localeCompare(b.team); });
+  return arr.slice(0, topN);
+}
+
+function barsHTML(arr, cls){
+  if (!arr.length) return '<p class="empty">Sin datos.</p>';
+  var max = arr[0].n || 1;
+  return arr.map(function(it){
+    var w = Math.max(6, Math.round(it.n / max * 100));
+    return '<div class="bar ' + cls + '">' +
+      '<span class="bname" title="' + esc(teamText(it.team)) + '">' + teamHTML(it.team) + '</span>' +
+      '<span class="btrack"><span class="bfill" style="width:' + w + '%"></span></span>' +
+      '<span class="bval">' + it.n + '</span></div>';
+  }).join("");
+}
+
+// Progreso real desde el modelo: "tengo" = postales con cantidad ≥ 1.
+function computeProgress(data){
+  var total = 0, have = 0, completos = 0;
+  SECTIONS.forEach(function(sec){
+    var size = sec.nums.length;
+    var falta = (data.faltan[sec.label] || []).length;
+    total += size;
+    have += Math.max(0, size - falta);
+    if (falta === 0) completos++;
+  });
+  return {
+    total:total, have:have, missing: total - have,
+    pct: total ? (have >= total ? 100 : Math.floor(have / total * 100)) : 0,
+    completos:completos, sections: SECTIONS.length
+  };
+}
+
+function renderProgress(prog){
+  $("dashProgress").innerHTML =
+    '<div class="prog"><div class="progtop"><span>Progreso del álbum</span><b>' + prog.pct + '%</b></div>' +
+    '<div class="progbar"><span style="width:' + prog.pct + '%"></span></div>' +
+    '<div class="progsub">Tienes <b>' + prog.have + '</b> de ' + prog.total +
+    ' · Te faltan ' + prog.missing + ' · ' + prog.completos + '/' + prog.sections +
+    ' secciones completas</div></div>';
+}
+
+function renderDashboard(data, cruce){
+  var nF = countAll(data.faltan), nR = countAll(data.repes);
+  var teamsF = Object.keys(data.faltan).filter(function(k){ return data.faltan[k].length; }).length;
+
+  renderProgress(computeProgress(data));
+
+  var fourth;
+  if (cruce){
+    fourth = '<div class="stat a"><div class="n">' + countAll(cruce.leDoy) + ' / ' +
+      countAll(cruce.meDa) + '</div><div class="l">Le doy / Me da</div></div>';
+  } else {
+    var teamsR = Object.keys(data.repes).filter(function(k){ return data.repes[k].length; }).length;
+    fourth = '<div class="stat r"><div class="n">' + teamsR + '</div><div class="l">Equipos con repetidas</div></div>';
+  }
+
+  $("dashStats").innerHTML =
+    '<div class="stat f"><div class="n">' + nF + '</div><div class="l">Me faltan</div></div>' +
+    '<div class="stat r"><div class="n">' + nR + '</div><div class="l">Repetidas para dar</div></div>' +
+    '<div class="stat a"><div class="n">' + teamsF + '</div><div class="l">Equipos por completar</div></div>' +
+    fourth;
+
+  var casi = Object.keys(data.faltan)
+    .map(function(k){ return { team:k, n:data.faltan[k].length }; })
+    .filter(function(x){ return x.n >= 1 && x.n <= 2; })
+    .sort(function(a,b){ return a.n - b.n || a.team.localeCompare(b.team); });
+  var casiHTML = casi.length
+    ? '<div class="tags">' + casi.map(function(x){
+        return '<span class="tag">' + teamHTML(x.team) + ' · ' + x.n + '</span>';
+      }).join("") + '</div>'
+    : '<p class="empty">Ninguno con 1–2 pendientes.</p>';
+
+  var panels =
+    '<div class="panel"><h3>Donde más te falta</h3>' + barsHTML(rankTeams(data.faltan, 8), 'f') + '</div>' +
+    '<div class="panel"><h3>Lo que más puedes ofrecer</h3>' + barsHTML(rankTeams(data.repes, 8), 'r') + '</div>' +
+    '<div class="panel"><h3>Casi completos (te falta 1–2)</h3>' + casiHTML + '</div>';
+
+  if (cruce){
+    var ld = countAll(cruce.leDoy), md = countAll(cruce.meDa);
+    var bal = md - ld;
+    var balTxt = bal === 0 ? 'Equilibrado' : (bal > 0 ? 'Recibes ' + bal + ' más' : 'Das ' + (-bal) + ' más');
+    panels += '<div class="panel"><h3>Intercambio posible</h3>' +
+      '<div class="bar r"><span class="bname">Me da</span><span class="btrack"><span class="bfill" style="width:' +
+        (Math.max(ld, md) ? Math.round(md / Math.max(ld, md) * 100) : 0) + '%"></span></span><span class="bval">' + md + '</span></div>' +
+      '<div class="bar f"><span class="bname">Le doy</span><span class="btrack"><span class="bfill" style="width:' +
+        (Math.max(ld, md) ? Math.round(ld / Math.max(ld, md) * 100) : 0) + '%"></span></span><span class="bval">' + ld + '</span></div>' +
+      '<p class="hint" style="margin:8px 0 0">Balance: ' + esc(balTxt) + '</p></div>';
+  }
+
+  $("dashPanels").innerHTML = panels;
+}
+
+// Respeta el orden del álbum (SECTIONS), igual que la vista en pantalla.
+function mapLines(map){
+  return SECTIONS
+    .filter(function(s){ return map[s.label] && map[s.label].length; })
+    .map(function(s){ return teamText(s.label) + ": " + map[s.label].join(", "); })
+    .join("\n");
+}
+// Como mapLines, pero anota los SOBRANTES cuando hay 2+ (ej. "5×4" = 4 repetidas),
+// igual que la insignia "+N" del álbum.
+function repeLines(repesMap){
+  return SECTIONS
+    .filter(function(s){ return repesMap[s.label] && repesMap[s.label].length; })
+    .map(function(s){
+      var nums = repesMap[s.label].map(function(n){
+        var sob = getCount(s.id, n) - 1;
+        return sob >= 2 ? n + "×" + sob : n;
+      });
+      return teamText(s.label) + ": " + nums.join(", ");
+    }).join("\n");
+}
+
+function buildSummary(mode){
+  mode = mode || "mylist";
+  var album = (lastMy && lastMy.albumTitle) || "Álbum FIFA 2026";
+  var A = getMyName() || "—";
+  var parts = [];
+
+  if (mode === "mylist" || mode === "both"){
+    var prog = lastMy ? computeProgress(lastMy) : null;
+    var t = "Gestor de Álbum FIFA 2026 — " + album + "\n" +
+      "Propietario: " + A + "\nFecha: " + nowText() + "\n";
+    if (prog) t += "Progreso: " + prog.pct + "% (tengo " + prog.have +
+      " de " + prog.total + ", faltan " + prog.missing + ")\n";
+    t += "\nMe faltan:\n" + (mapLines(lastMy.faltan) || "—") +
+      "\n\nRepetidas:\n" + (repeLines(lastMy.repes) || "—");
+    parts.push(t);
+  }
+
+  if (mode === "cruce" || mode === "both"){
+    if (lastCruce){
+      var Aa = getMyName() || "Yo", B = getOtherName() || "La otra persona";
+      parts.push(album + " — Intercambio\nEntre: " + Aa + " y " + B +
+        "\nFecha: " + nowText() +
+        "\n" + NOTE_SHORT +
+        "\n\n" + Aa + " le da a " + B + ":\n" + (mapLines(lastCruce.leDoy) || "—") +
+        "\n\n" + B + " le da a " + Aa + ":\n" + (mapLines(lastCruce.meDa) || "—"));
+    } else if (mode === "cruce"){
+      parts.push("No hay intercambio calculado. Pega la lista de la otra persona y pulsa “Calcular intercambio”.");
+    }
+  }
+
+  return parts.join("\n\n———\n\n") +
+    "\n\n— Generado con la herramienta de Roy Méndez Castro";
+}
+
+// Lista compartible que el cruce de ESTA herramienta sabe leer (formato canónico).
+function buildShareList(){
+  var d = deriveData();
+  var out = ["INTERCAMBIO ÁLBUM FIFA — Lista para cruce",
+             "Álbum: " + (model.album || "Usa Méx Can 26"),
+             "Me faltan"];
+  SECTIONS.forEach(function(sec){
+    var fa = d.faltan[sec.label];
+    if (fa && fa.length) out.push(sec.label + ": " + fa.join(", "));
+  });
+  out.push("Repetidas");
+  SECTIONS.forEach(function(sec){
+    var re = d.repes[sec.label];
+    if (re && re.length){
+      var nums = re.map(function(n){
+        var sob = getCount(sec.id, n) - 1;
+        return sob >= 2 ? n + "×" + sob : n;
+      });
+      out.push(sec.label + ": " + nums.join(", "));
+    }
+  });
+  out.push("— Lista de " + (getMyName() || "(sin nombre)") + " · INTERCAMBIO ÁLBUM FIFA");
+  return out.join("\n");
+}
+
+function doCopy(txt, btn){
+  var orig = btn.getAttribute("data-label");
+  if (!orig){ orig = btn.textContent; btn.setAttribute("data-label", orig); }
+  function done(ok){
+    btn.textContent = ok ? "¡Copiado!" : "Copia manual…";
+    setTimeout(function(){ btn.textContent = orig; }, 2000);
+    if (!ok) window.prompt("Copia este texto:", txt);
+  }
+  function fallback(){
+    try{
+      var ta = document.createElement("textarea");
+      ta.value = txt; ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      var ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      done(ok);
+    } catch(e){ done(false); }
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(function(){ done(true); }, fallback);
+  } else {
+    fallback();
+  }
+}
+function copySummary(mode, btnId){ doCopy(buildSummary(mode), $(btnId)); }
+function copyShare(){ doCopy(buildShareList(), $("btnShare")); }
+function printDoc(mode){ document.body.setAttribute("data-print", mode); window.print(); }
+
+// ---- Modelo → vistas ----
+var lastMy = null, lastCruce = null;
+
+function deriveData(){
+  var d = { albumTitle: model.album || "Usa Méx Can 26", faltan:{}, repes:{}, order:[] };
+  SECTIONS.forEach(function(sec){
+    var fa = [], re = [];
+    sec.nums.forEach(function(n){
+      var c = getCount(sec.id, n);
+      if (c <= 0) fa.push(n);
+      else if (c >= 2) re.push(n);
+    });
+    d.order.push(sec.label);
+    if (fa.length) d.faltan[sec.label] = fa;
+    if (re.length) d.repes[sec.label] = re;
+  });
+  return d;
+}
+
+// Separa un token "5", "00", "5x3" o "5×3" en número y cantidad total.
+function parseNumTok(tok){
+  var m = String(tok).trim().match(/^(00|\d+)(?:\s*[x×*]\s*(\d+))?$/);
+  if (!m) return { num: String(tok).trim(), count: null };
+  return { num: m[1], count: m[2] ? parseInt(m[2], 10) : null };
+}
+
+// Mapea una etiqueta del mensaje de Figuritas App a un id de sección.
+// Identifica la sección desde cualquier formato de etiqueta:
+// Figuritas ("MEX 🇲🇽"), compartir ("KOR 🇰🇷"), o "Mi lista" ("🇲🇽 México (MEX)").
+function msgSectionId(label){
+  var L = String(label);
+  if (L.indexOf("🏆") !== -1) return "FWC_ESP";
+  if (L.indexOf("🌎") !== -1) return "FWC_BAL";
+  if (L.indexOf("📜") !== -1) return "FWC_HIS";
+  if (L.indexOf("🥤") !== -1) return "CC";
+  var pin = L.match(/\(([A-Za-z]{2,4})\)/);
+  if (pin && SEC_BY_ID[pin[1].toUpperCase()]) return pin[1].toUpperCase();
+  var toks = L.trim().split(/\s+/);
+  for (var i = 0; i < toks.length; i++){
+    var c = toks[i].toUpperCase();
+    if (c === "CC") return "CC";
+    if (/^[A-Z]{2,4}$/.test(c) && SEC_BY_ID[c]) return c;
+  }
+  return null;
+}
+
+function importFromFiguritas(text){
+  var d = parseList(text);
+  var falta = {}, repe = {};
+  Object.keys(d.faltan).forEach(function(lab){
+    var sid = msgSectionId(lab); if (!sid) return;
+    falta[sid] = falta[sid] || {};
+    d.faltan[lab].forEach(function(tok){ falta[sid][parseNumTok(tok).num] = 1; });
+  });
+  Object.keys(d.repes).forEach(function(lab){
+    var sid = msgSectionId(lab); if (!sid) return;
+    repe[sid] = repe[sid] || {};
+    d.repes[lab].forEach(function(tok){
+      var p = parseNumTok(tok);
+      // El número tras "×" son SOBRANTES; cantidad total = sobrantes + 1.
+      var cnt = (p.count && p.count >= 1) ? p.count + 1 : 2;  // sin "×" = 1 sobrante
+      repe[sid][p.num] = cnt;
+    });
+  });
+  var own = {};
+  SECTIONS.forEach(function(sec){
+    sec.nums.forEach(function(n){
+      var c;
+      if (repe[sec.id] && repe[sec.id][n]) c = repe[sec.id][n];  // repetida (cantidad total)
+      else if (falta[sec.id] && falta[sec.id][n]) c = 0;          // falta
+      else c = 1;                                                 // la tengo
+      if (c > 0) own[cKey(sec.id, n)] = c;
+    });
+  });
+  model.own = own;
+  if (d.albumTitle) model.album = d.albumTitle;
+  saveModel();
+}
+
+function cellClass(c){ return c <= 0 ? "c0" : (c >= 2 ? "c2" : "c1"); }
+function cellInner(n, c){
+  return esc(n) + (c >= 2 ? '<span class="bdg">+' + (c - 1) + '</span>' : '');
+}
+
+function renderAlbum(){
+  var html = "";
+  SECTIONS.forEach(function(sec){
+    var have = 0, cells = "";
+    sec.nums.forEach(function(n){
+      var c = getCount(sec.id, n);
+      if (c >= 1) have++;
+      cells += '<div class="cell ' + cellClass(c) + '" data-sid="' + sec.id +
+        '" data-num="' + esc(n) + '">' + cellInner(n, c) + '</div>';
+    });
+    html += '<div class="sec" data-sid="' + sec.id + '"><h4>' + teamHTML(sec.label) +
+      ' <span class="scount">' + have + '/' + sec.nums.length + '</span></h4>' +
+      '<div class="grid">' + cells + '</div></div>';
+  });
+  $("albumGrid").innerHTML = html;
+}
+
+var editMode = "add";
+function setMode(m){
+  editMode = m;
+  $("btnAdd").classList.toggle("on", m === "add");
+  $("btnSub").classList.toggle("on", m === "sub");
+}
+
+function refreshDerived(){
+  var data = deriveData();
+  lastMy = data;
+  renderMyList(data);
+  var otherText = $("otherInput").value.trim();
+  var cruce = null;
+  if (otherText){
+    var other = parseList(otherText);
+    if (Object.keys(other.faltan).length || Object.keys(other.repes).length){
+      cruce = computeCruce(data, other);
+    }
+    renderCruce(data, other);
+  } else {
+    renderCruce(data, null);
+  }
+  lastCruce = cruce;
+  renderDashboard(data, cruce);
+  localStorage.setItem(LS_MYNAME, getMyName());
+  localStorage.setItem(LS_OTHERNAME, getOtherName());
+}
+
+var TABS = ["inicio","album","lista","resumen","intercambio"];
+function setTab(t){
+  if (TABS.indexOf(t) === -1) t = "album";
+  document.body.setAttribute("data-tab", t);
+  var btns = document.querySelectorAll("#tabbar button");
+  for (var i = 0; i < btns.length; i++){
+    btns[i].classList.toggle("on", btns[i].getAttribute("data-go") === t);
+  }
+  localStorage.setItem(LS_TAB, t);
+  window.scrollTo(0, 0);
+}
+
+function updateControls(){
+  var imp = $("btnImport");
+  if (imp) imp.disabled = !$("myInput").value.trim();
+}
+
+function rebuildAll(){ renderAlbum(); refreshDerived(); updateControls(); }
+
+window.addEventListener("DOMContentLoaded", function(){
+  var savedMyName = localStorage.getItem(LS_MYNAME);
+  var savedOtherName = localStorage.getItem(LS_OTHERNAME);
+  $("myInput").value = "";
+  $("otherInput").value = "";
+  if (savedMyName) $("myName").value = savedMyName;
+  if (savedOtherName) $("otherName").value = savedOtherName;
+
+  rebuildAll();
+
+  var savedTab = localStorage.getItem(LS_TAB);
+  setTab(savedTab || (Object.keys(model.own).length ? "album" : "inicio"));
+  var tabBtns = document.querySelectorAll("#tabbar button");
+  for (var ti = 0; ti < tabBtns.length; ti++){
+    tabBtns[ti].addEventListener("click", function(){ setTab(this.getAttribute("data-go")); });
+  }
+
+  $("btnImport").addEventListener("click", function(){
+    var txt = $("myInput").value;
+    if (!txt.trim()){ alert("Pega primero el texto a importar."); return; }
+    if (Object.keys(model.own).length &&
+        !confirm("Esto reemplaza tu álbum con la información del texto pegado. ¿Continuar?")) return;
+    importFromFiguritas(txt);
+    $("myInput").value = "";
+    rebuildAll();
+    setTab("album");
+    alert("Importado. Ahora gestiona todo tocando las postales.");
+  });
+
+  $("myInput").addEventListener("input", updateControls);
+
+  $("btnZero").addEventListener("click", function(){
+    var tiene = Object.keys(model.own).length > 0;
+    if (tiene && !confirm("⚠ Esto BORRA todo tu álbum (lo dejará en blanco). Si no tienes una copia del texto de «Mi lista», la perderás. ¿Continuar?")) return;
+    if (!confirm("Confirmar: ¿empezar desde cero con TODO en “Falta”?")) return;
+    model = { v:1, album:"Usa Méx Can 26", own:{} };
+    saveModel();
+    rebuildAll();
+    setTab("album");
+  });
+
+  $("btnAdd").addEventListener("click", function(){ setMode("add"); });
+  $("btnSub").addEventListener("click", function(){ setMode("sub"); });
+
+  $("albumGrid").addEventListener("click", function(e){
+    var cell = e.target.closest ? e.target.closest(".cell") : null;
+    if (!cell) return;
+    var sid = cell.getAttribute("data-sid");
+    var num = cell.getAttribute("data-num");
+    var c = clamp(getCount(sid, num) + (editMode === "add" ? 1 : -1), 0, 99);
+    setCount(sid, num, c);
+    saveModel();
+    cell.className = "cell " + cellClass(c);
+    cell.innerHTML = cellInner(num, c);
+    var sec = cell.parentNode.parentNode;
+    var def = SEC_BY_ID[sid];
+    var have = 0;
+    def.nums.forEach(function(n){ if (getCount(sid, n) >= 1) have++; });
+    var sc = sec.querySelector(".scount");
+    if (sc) sc.textContent = have + "/" + def.nums.length;
+    refreshDerived();
+  });
+
+  $("btnShare").addEventListener("click", copyShare);
+  $("btnCruce").addEventListener("click", refreshDerived);
+  $("myName").addEventListener("change", refreshDerived);
+  $("otherName").addEventListener("change", refreshDerived);
+
+  $("btnPrintList").addEventListener("click", function(){ printDoc("mylist"); });
+  $("btnCopy").addEventListener("click", function(){ copySummary("mylist", "btnCopy"); });
+  $("btnPrintCruce").addEventListener("click", function(){ printDoc("cruce"); });
+  $("btnCopyCruce").addEventListener("click", function(){ copySummary("cruce", "btnCopyCruce"); });
+});
+</script>
+</body>
+</html>
