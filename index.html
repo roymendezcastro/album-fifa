@@ -120,7 +120,6 @@
   .lab.f{color:var(--falta)} .lab.r{color:var(--repe)}
   .nums{color:var(--ink)}
   .rp{display:none}
-  .bx{display:inline-block; width:9px; height:9px; border:1px solid #555; border-radius:2px; margin:0 1px; vertical-align:baseline}
   .empty{color:var(--muted); font-size:13px; padding:6px 0}
   .legend{font-size:12px; color:var(--muted); margin-top:8px}
   .legend b.f{color:var(--falta)} .legend b.r{color:var(--repe)}
@@ -161,7 +160,6 @@
     .team .line{font-size:11px}
     .rs{display:none}
     .rp{display:inline}
-    .bx{border-color:#000; width:11px; height:11px; margin:0 2px}
     h2{font-size:13px; margin:0 0 6px}
     @page{margin:12mm}
     .credit{display:block; margin:14px 0 0; padding:8px 0 0; border-top:1px solid #999; color:#333; font-size:10px; text-align:center}
@@ -243,7 +241,7 @@
     </div>
     <h2 class="no-print">Mi lista ordenada</h2>
     <div class="row no-print">
-      <button class="primary" id="btnPrintList">Imprimir mi lista</button>
+      <button class="primary" id="btnPrintList">Compartir PDF (mi lista)</button>
       <button id="btnCopy" class="green">Compartir mi lista por mensaje</button>
     </div>
     <div id="summary" class="chips"></div>
@@ -281,7 +279,7 @@
     <div class="no-print" id="cruceActions" style="display:none">
       <h2 style="margin-top:24px">Compartir</h2>
       <div class="row">
-        <button class="primary" id="btnPrintCruce">Imprimir intercambio</button>
+        <button class="primary" id="btnPrintCruce">Compartir PDF (intercambio)</button>
         <button id="btnCopyCruce" class="green">Compartir intercambio por mensaje</button>
       </div>
     </div>
@@ -529,16 +527,16 @@ function renderMyList(data){
     if (f.length) html += '<div class="line"><span class="lab f">Faltan:</span> <span class="nums">' + esc(f.join(", ")) + '</span></div>';
     if (r.length){
       var sid = msgSectionId(lab);
-      var rTxt = r.map(function(n){
+      var rs = [], rp = [];
+      r.forEach(function(n){
         var sob = sid ? getCount(sid, n) - 1 : 1;
         if (sob < 1) sob = 1;
-        var sc = sob >= 2 ? esc(n) + "×" + sob : esc(n);
-        var bx = "";
-        for (var k = 0; k < sob; k++) bx += '<span class="bx"></span>';
-        return '<span class="rs">' + sc + '</span>' +
-               '<span class="rp">' + esc(n) + ' ' + bx + '</span>';
-      }).join(", ");
-      html += '<div class="line"><span class="lab r">Repetidas:</span> <span class="nums">' + rTxt + '</span></div>';
+        rs.push(sob >= 2 ? esc(n) + "×" + sob : esc(n));
+        for (var k = 0; k < sob; k++) rp.push(esc(n));
+      });
+      html += '<div class="line"><span class="lab r">Repetidas:</span> ' +
+        '<span class="nums"><span class="rs">' + rs.join(", ") + '</span>' +
+        '<span class="rp">' + rp.join(", ") + '</span></span></div>';
     }
     html += "</div>";
   });
@@ -845,7 +843,151 @@ function shareOrCopy(txt, btn){
 }
 function copySummary(mode, btnId){ shareOrCopy(buildSummary(mode), $(btnId)); }
 function copyShare(){ shareOrCopy(buildShareList(), $("btnShare")); }
-function printDoc(mode){ document.body.setAttribute("data-print", mode); window.print(); }
+// ---- PDF propio, sin librerías (texto, Helvetica, WinAnsi) ----
+function pdfText(s){
+  s = String(s)
+    .replace(/[—–]/g, "-").replace(/[“”]/g, '"').replace(/[’]/g, "'");
+  var out = "";
+  for (var i = 0; i < s.length; i++){
+    var c = s.charCodeAt(i);
+    if (c > 0xFF) continue;                 // descarta emoji/banderas
+    var ch = s.charAt(i);
+    if (ch === "\\" || ch === "(" || ch === ")") out += "\\" + ch;
+    else out += ch;
+  }
+  return out;
+}
+function pdfWrap(text, max){
+  var words = String(text).split(" "), lines = [], cur = "";
+  for (var i = 0; i < words.length; i++){
+    var w = words[i];
+    if (cur && (cur + " " + w).length > max){ lines.push(cur); cur = w; }
+    else cur = cur ? cur + " " + w : w;
+  }
+  if (cur) lines.push(cur);
+  return lines.length ? lines : [""];
+}
+function secLinesFromMap(map, repeatByCount){
+  var L = [];
+  SECTIONS.forEach(function(s){
+    var arr = map[s.label];
+    if (!arr || !arr.length) return;
+    var nums = [];
+    arr.forEach(function(n){
+      if (repeatByCount){
+        var sob = getCount(s.id, n) - 1; if (sob < 1) sob = 1;
+        for (var k = 0; k < sob; k++) nums.push(n);
+      } else nums.push(n);
+    });
+    var pref = teamParts(s.label).name + ": ";
+    pdfWrap(pref + nums.join(", "), 92).forEach(function(ln, idx){
+      L.push({ text: idx ? "    " + ln : ln, size: 10 });
+    });
+  });
+  if (!L.length) L.push({ text: "(ninguna)", size: 10 });
+  return L;
+}
+function buildPdfLines(mode){
+  var album = (lastMy && lastMy.albumTitle) || "Álbum FIFA 2026";
+  var L = [];
+  if (mode === "cruce" && lastCruce){
+    var A = getMyName() || "Yo", B = getOtherName() || "La otra persona";
+    var nD = countAll(lastCruce.leDoy), nR = countAll(lastCruce.meDa);
+    L.push({ text: "Intercambio - " + album, size: 15, bold: true });
+    L.push({ text: "Entre: " + A + " y " + B + "  -  " + nowText(), size: 10 });
+    L.push({ text: A + " entrega " + nD + "  -  recibe " + nR, size: 10, bold: true });
+    pdfWrap(NOTE_SHORT, 95).forEach(function(t){ L.push({ text: t, size: 8 }); });
+    L.push({ text: "", size: 8 });
+    L.push({ text: A + " le da a " + B + " (" + nD + ")", size: 12, bold: true });
+    secLinesFromMap(lastCruce.leDoy, false).forEach(function(x){ L.push(x); });
+    L.push({ text: "", size: 8 });
+    L.push({ text: B + " le da a " + A + " (" + nR + ")", size: 12, bold: true });
+    secLinesFromMap(lastCruce.meDa, false).forEach(function(x){ L.push(x); });
+  } else {
+    var prog = lastMy ? computeProgress(lastMy) : null;
+    L.push({ text: "Gestor de Álbum FIFA 2026 - " + album, size: 15, bold: true });
+    L.push({ text: "Propietario: " + (getMyName() || "-") + "  -  " + nowText(), size: 10 });
+    if (prog) L.push({ text: "Progreso: " + prog.pct + "% (tengo " + prog.have +
+      " de " + prog.total + ", faltan " + prog.missing + ")", size: 10 });
+    L.push({ text: "", size: 8 });
+    L.push({ text: "FALTANTES", size: 12, bold: true });
+    secLinesFromMap(lastMy ? lastMy.faltan : {}, false).forEach(function(x){ L.push(x); });
+    L.push({ text: "", size: 8 });
+    L.push({ text: "REPETIDAS", size: 12, bold: true });
+    secLinesFromMap(lastMy ? lastMy.repes : {}, true).forEach(function(x){ L.push(x); });
+  }
+  L.push({ text: "", size: 8 });
+  L.push({ text: "Generado con la herramienta de Roy Méndez Castro", size: 8 });
+  return L;
+}
+function buildPdf(mode){
+  var lines = buildPdfLines(mode);
+  var pages = [], cur = [], y = 750;
+  for (var i = 0; i < lines.length; i++){
+    var ln = lines[i], step = ln.size >= 13 ? 22 : 15;
+    if (y - step < 46){ pages.push(cur); cur = []; y = 750; }
+    if (ln.text !== ""){
+      cur.push("BT /F" + (ln.bold ? 2 : 1) + " " + ln.size + " Tf 42 " +
+        y.toFixed(1) + " Td (" + pdfText(ln.text) + ") Tj ET");
+    }
+    y -= step;
+  }
+  if (cur.length || !pages.length) pages.push(cur);
+
+  var obj = [], body = "%PDF-1.4\n", off = [];
+  function add(s){ off.push(body.length); body += (off.length) + " 0 obj\n" + s + "\nendobj\n"; }
+  var nP = pages.length;
+  var kids = [];
+  for (var p = 0; p < nP; p++) kids.push((5 + p * 2) + " 0 R");
+  add("<< /Type /Catalog /Pages 2 0 R >>");
+  add("<< /Type /Pages /Kids [" + kids.join(" ") + "] /Count " + nP + " >>");
+  add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>");
+  add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>");
+  for (var q = 0; q < nP; q++){
+    add("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents " + (6 + q * 2) + " 0 R >>");
+    var stream = pages[q].join("\n");
+    add("<< /Length " + stream.length + " >>\nstream\n" + stream + "\nendstream");
+  }
+  var xref = body.length;
+  body += "xref\n0 " + (off.length + 1) + "\n0000000000 65535 f \n";
+  for (var r = 0; r < off.length; r++){
+    body += ("0000000000" + off[r]).slice(-10) + " 00000 n \n";
+  }
+  body += "trailer\n<< /Size " + (off.length + 1) + " /Root 1 0 R >>\nstartxref\n" + xref + "\n%%EOF";
+  var u = new Uint8Array(body.length);
+  for (var b = 0; b < body.length; b++) u[b] = body.charCodeAt(b) & 0xFF;
+  return u;
+}
+function pdfFileName(mode){
+  var dt = new Date(), p = function(x){ return (x < 10 ? "0" : "") + x; };
+  var slug = (getMyName() || "sin-nombre").replace(/[\\/:*?"<>|]/g, "").trim().replace(/\s+/g, "-") || "sin-nombre";
+  return (mode === "cruce" ? "Intercambio" : "Mi-lista") + "-" + slug + "-" +
+    dt.getFullYear() + p(dt.getMonth() + 1) + p(dt.getDate()) + ".pdf";
+}
+function sharePdf(mode){
+  if (mode === "cruce" && !lastCruce){ alert("Primero calcula un intercambio."); return; }
+  var name = pdfFileName(mode);
+  var blob = new Blob([buildPdf(mode)], { type: "application/pdf" });
+  try {
+    var file = new File([blob], name, { type: "application/pdf" });
+    if (navigator.canShare && navigator.canShare({ files: [file] })){
+      navigator.share({ files: [file], title: name }).catch(function(e){
+        if (e && e.name === "AbortError") return;
+        downloadBlob(blob, name);
+      });
+      return;
+    }
+  } catch (e) {}
+  downloadBlob(blob, name);
+}
+function downloadBlob(blob, name){
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+}
 
 // ---- Modelo → vistas ----
 var lastMy = null, lastCruce = null;
@@ -1063,9 +1205,9 @@ window.addEventListener("DOMContentLoaded", function(){
   $("myName").addEventListener("change", refreshDerived);
   $("otherName").addEventListener("change", refreshDerived);
 
-  $("btnPrintList").addEventListener("click", function(){ printDoc("mylist"); });
+  $("btnPrintList").addEventListener("click", function(){ sharePdf("mylist"); });
   $("btnCopy").addEventListener("click", function(){ copySummary("mylist", "btnCopy"); });
-  $("btnPrintCruce").addEventListener("click", function(){ printDoc("cruce"); });
+  $("btnPrintCruce").addEventListener("click", function(){ sharePdf("cruce"); });
   $("btnCopyCruce").addEventListener("click", function(){ copySummary("cruce", "btnCopyCruce"); });
 });
 </script>
