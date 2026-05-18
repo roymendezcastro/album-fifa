@@ -42,6 +42,8 @@
   button.primary:hover{background:var(--accent)}
   button.green{background:#16a34a; border-color:#16a34a; color:#fff}
   button.green:hover{background:#15803d}
+  button.amber{background:#b45309; border-color:#b45309; color:#fff}
+  button.amber:hover{background:#92400e}
   button:disabled{opacity:.45; cursor:not-allowed; filter:none}
   button:disabled:hover{background:#fff}
   button.primary:disabled{background:var(--accent)}
@@ -243,6 +245,7 @@
     <div class="row no-print">
       <button class="primary" id="btnPrintList">Compartir PDF (mi lista)</button>
       <button id="btnCopy" class="green">Compartir mi lista por mensaje</button>
+      <button id="btnPrintListHtml" class="amber">Imprimir / Guardar PDF con diseño</button>
     </div>
     <div id="summary" class="chips"></div>
     <div id="teams" class="teams"></div>
@@ -275,14 +278,15 @@
         <button id="btnCruce" class="primary">Calcular intercambio</button>
       </div>
     </div>
-    <div id="cruceResult"></div>
     <div class="no-print" id="cruceActions" style="display:none">
       <h2 style="margin-top:24px">Compartir</h2>
       <div class="row">
         <button class="primary" id="btnPrintCruce">Compartir PDF (intercambio)</button>
         <button id="btnCopyCruce" class="green">Compartir intercambio por mensaje</button>
+        <button id="btnPrintCruceHtml" class="amber">Imprimir / Guardar PDF con diseño</button>
       </div>
     </div>
+    <div id="cruceResult"></div>
   </section>
 
 </main>
@@ -1016,6 +1020,12 @@ function downloadBlob(blob, name){
   a.click();
   setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 1500);
 }
+// PDF "con diseño" = imprimir la página estilizada (con banderas/iconos) → Guardar como PDF.
+function printDoc(mode){
+  if (mode === "cruce" && !lastCruce){ alert("Primero calcula un intercambio."); return; }
+  document.body.setAttribute("data-print", mode);
+  window.print();
+}
 
 // ---- Modelo → vistas ----
 var lastMy = null, lastCruce = null;
@@ -1234,8 +1244,10 @@ window.addEventListener("DOMContentLoaded", function(){
   $("otherName").addEventListener("change", refreshDerived);
 
   $("btnPrintList").addEventListener("click", function(){ sharePdf("mylist"); });
+  $("btnPrintListHtml").addEventListener("click", function(){ printDoc("mylist"); });
   $("btnCopy").addEventListener("click", function(){ copySummary("mylist", "btnCopy"); });
   $("btnPrintCruce").addEventListener("click", function(){ sharePdf("cruce"); });
+  $("btnPrintCruceHtml").addEventListener("click", function(){ printDoc("cruce"); });
   $("btnCopyCruce").addEventListener("click", function(){ copySummary("cruce", "btnCopyCruce"); });
 });
 </script>
