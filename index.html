@@ -151,6 +151,21 @@
   .simbadge{display:inline-block; background:#475569; color:#fff; font-size:11px; font-weight:700;
     border-radius:6px; padding:2px 8px; letter-spacing:.04em; margin-bottom:8px}
   .simbox .progsub{color:#334155}
+  #simBanner{position:sticky; top:0; z-index:6; background:#dc2626; color:#fff;
+    padding:9px 14px; display:none; align-items:center; flex-wrap:wrap; gap:8px;
+    font-weight:700; box-shadow:0 2px 6px rgba(0,0,0,.18)}
+  #simBanner .lbl{flex:1; min-width:200px; font-size:13px; line-height:1.3}
+  #simBanner button{padding:7px 12px; border-radius:6px; font-size:13px; font-weight:700; border:1px solid transparent; cursor:pointer}
+  #simBanner button.exit{background:#fff; color:#7f1d1d; border-color:#fee2e2}
+  #simBanner button.apply{background:#16a34a; color:#fff; border-color:#15803d}
+  body.sim-mode #simBanner{display:flex}
+  body.sim-mode #tabbar{top:var(--simh,0)}
+  body.sim-mode #albumCtrls{top:calc(var(--simh,0px) + var(--tabh,48px))}
+  body.sim-mode main{outline:3px solid #dc2626; outline-offset:-3px; border-radius:4px}
+  body.sim-mode #btnImport, body.sim-mode #btnZero, body.sim-mode #btnLock{display:none}
+  body.sim-mode #cruceInputs{pointer-events:none; opacity:.55}
+  body.sim-mode #cruceActions{pointer-events:none; opacity:.55}
+  body.sim-mode .editmode{display:none !important}
   .credit{max-width:1100px; margin:0 auto; padding:14px 16px 34px; text-align:center; color:var(--muted); font-size:12px}
   .tabs{position:sticky; top:0; z-index:5; display:flex; gap:4px; overflow-x:auto; background:#fff;
     border-bottom:1px solid var(--line); padding:6px 8px; -webkit-overflow-scrolling:touch}
@@ -191,6 +206,12 @@
 </style>
 </head>
 <body data-print="mylist">
+
+<div id="simBanner" class="no-print" role="alert">
+  <span class="lbl">⚠ SIMULACIÓN ACTIVA — vista previa del trato. No se modifica tu álbum.</span>
+  <button class="exit" id="btnSimExitTop">Salir de simulación</button>
+  <button class="apply" id="btnSimApplyTop">Aplicar al álbum</button>
+</div>
 
 <header class="page">
   <h1>Gestor de Álbum FIFA 2026</h1>
@@ -576,10 +597,11 @@ function renderMyList(data){
 
   var labels = teamOrder(data);
   var nF = countAll(data.faltan), nR = countAll(data.repes);
+  var teamsListed = labels.filter(function(k){ return COUNTRY_CODES.indexOf(labelCode(k)) !== -1; }).length;
 
   $("summary").innerHTML =
     '<span class="chip">' + esc(title) + '</span>' +
-    '<span class="chip">Equipos: ' + labels.length + '</span>' +
+    '<span class="chip">Equipos: ' + teamsListed + '</span>' +
     '<span class="chip">Me faltan: ' + nF + '</span>' +
     '<span class="chip">Repetidas: ' + nR + '</span>';
 
@@ -699,7 +721,12 @@ function renderCruce(my, other){
 }
 
 // ---- Simulación de intercambio (seguro: no escribe hasta "Aplicar") ----
-var sim = { excluded:{}, applied:null };
+var sim = { excluded:{}, applied:null, active:false, backup:null };
+function updateSimH(){
+  var b = $("simBanner");
+  var h = (sim.active && b) ? b.offsetHeight : 0;
+  document.documentElement.style.setProperty("--simh", h + "px");
+}
 function simItems(){
   var give = [], recv = [];
   if (lastCruce){
@@ -728,10 +755,32 @@ function setSimStage(s){
   });
 }
 function resetSim(){
+  if (sim.active){
+    // Restaurar el modelo y salir del modo simulación.
+    model.own = sim.backup;
+    sim.backup = null; sim.active = false;
+    document.body.classList.remove("sim-mode");
+    updateSimH();
+    rebuildAll();
+  }
   sim.excluded = {}; sim.applied = null;
   if ($("simAfter")) $("simAfter").style.display = "none";
   if ($("simResultActions")) $("simResultActions").style.display = "";
   setSimStage("simStart");
+}
+function enterSimMode(sel){
+  if (sim.active) return;
+  // backup del modelo real
+  sim.backup = {};
+  Object.keys(model.own).forEach(function(k){ sim.backup[k] = model.own[k]; });
+  // aplicar deltas en memoria (NO se guarda en localStorage)
+  sel.give.forEach(function(it){ setCount(it.sid, it.num, clamp(getCount(it.sid,it.num) - 1, 0, 99)); });
+  sel.recv.forEach(function(it){ setCount(it.sid, it.num, clamp(getCount(it.sid,it.num) + 1, 0, 99)); });
+  sim.active = true; sim.applied = sel;
+  setLock(true);
+  document.body.classList.add("sim-mode");
+  setTimeout(updateSimH, 0);    // mide tras pintar el banner
+  rebuildAll();                  // todas las vistas se re-renderean con el modelo proyectado
 }
 function simDeltas(sel){
   var d = {};
@@ -749,10 +798,11 @@ function simProgress(d){
       if (c >= 1) have++; else falt++;
     });
     total += s.nums.length;
-    if (falt === 0) comp++;
+    if (falt === 0 && isTeamSection(s)) comp++;
   });
   return { total:total, have:have, missing:total-have,
-           pct: have >= total ? 100 : Math.floor(have/total*100), completos:comp };
+           pct: have >= total ? 100 : Math.floor(have/total*100),
+           completos:comp, equipos: COUNTRY_CODES.length };
 }
 function renderSimAdjust(){
   var it = simItems(), A = getMyName() || "Yo", B = getOtherName() || "La otra persona";
@@ -795,14 +845,16 @@ function renderSimResult(){
   setSimStage("simResult");
 }
 function applySim(){
-  var sel = simSelected();
+  if (!sim.active){ alert("Activa la simulación primero."); return; }
+  var sel = sim.applied || simSelected();
   if (!sel.give.length && !sel.recv.length){ alert("No hay nada que aplicar."); return; }
   if (!confirm("¿Aplicar este intercambio a tu álbum?\nRecibes " + sel.recv.length +
       " y entregas " + sel.give.length + ". Esto modifica tus datos.")) return;
-  sel.give.forEach(function(it){ setCount(it.sid, it.num, clamp(getCount(it.sid,it.num)-1, 0, 99)); });
-  sel.recv.forEach(function(it){ setCount(it.sid, it.num, clamp(getCount(it.sid,it.num)+1, 0, 99)); });
+  // El modelo ya está mutado con los deltas (desde enterSimMode); solo persistir y salir del modo.
   saveModel();
-  sim.applied = sel;
+  sim.backup = null; sim.active = false;
+  document.body.classList.remove("sim-mode");
+  updateSimH();
   rebuildAll();   // recalcula cruce (debe quedar en 0)
   var zeros = countAll(lastCruce ? lastCruce.leDoy : {}) + countAll(lastCruce ? lastCruce.meDa : {});
   $("simBlock").style.display = "";
@@ -875,6 +927,9 @@ function barsHTML(arr, cls){
 }
 
 // Progreso real desde el modelo: "tengo" = postales con cantidad ≥ 1.
+// Solo los 48 países cuentan como "equipos" para estadísticas; FWC* y CC son secciones especiales.
+function isTeamSection(sec){ return COUNTRY_CODES.indexOf(sec.id) !== -1; }
+
 function computeProgress(data){
   var total = 0, have = 0, completos = 0;
   SECTIONS.forEach(function(sec){
@@ -882,12 +937,12 @@ function computeProgress(data){
     var falta = (data.faltan[sec.label] || []).length;
     total += size;
     have += Math.max(0, size - falta);
-    if (falta === 0) completos++;
+    if (falta === 0 && isTeamSection(sec)) completos++;
   });
   return {
     total:total, have:have, missing: total - have,
     pct: total ? (have >= total ? 100 : Math.floor(have / total * 100)) : 0,
-    completos:completos, sections: SECTIONS.length
+    completos:completos, equipos: COUNTRY_CODES.length
   };
 }
 
@@ -896,13 +951,15 @@ function renderProgress(prog){
     '<div class="prog"><div class="progtop"><span>Progreso del álbum</span><b>' + prog.pct + '%</b></div>' +
     '<div class="progbar"><span style="width:' + prog.pct + '%"></span></div>' +
     '<div class="progsub">Tienes <b>' + prog.have + '</b> de ' + prog.total +
-    ' · Te faltan ' + prog.missing + ' · ' + prog.completos + '/' + prog.sections +
-    ' secciones completas</div></div>';
+    ' · Te faltan ' + prog.missing + ' · ' + prog.completos + '/' + prog.equipos +
+    ' equipos completos</div></div>';
 }
 
 function renderDashboard(data, cruce){
   var nF = countAll(data.faltan), nR = countAll(data.repes);
-  var teamsF = Object.keys(data.faltan).filter(function(k){ return data.faltan[k].length; }).length;
+  var teamsF = Object.keys(data.faltan).filter(function(k){
+    return data.faltan[k].length && COUNTRY_CODES.indexOf(labelCode(k)) !== -1;
+  }).length;
 
   renderProgress(computeProgress(data));
 
@@ -1406,19 +1463,21 @@ function refreshDerived(){
   var data = deriveData();
   lastMy = data;
   renderMyList(data);
-  var otherText = $("otherInput").value.trim();
-  var cruce = null;
-  if (otherText){
-    var other = parseList(otherText);
-    if (Object.keys(other.faltan).length || Object.keys(other.repes).length){
-      cruce = computeCruce(data, other);
+  if (!sim.active){
+    var otherText = $("otherInput").value.trim();
+    var cruce = null;
+    if (otherText){
+      var other = parseList(otherText);
+      if (Object.keys(other.faltan).length || Object.keys(other.repes).length){
+        cruce = computeCruce(data, other);
+      }
+      renderCruce(data, other);
+    } else {
+      renderCruce(data, null);
     }
-    renderCruce(data, other);
-  } else {
-    renderCruce(data, null);
+    lastCruce = cruce;
   }
-  lastCruce = cruce;
-  renderDashboard(data, cruce);
+  renderDashboard(data, lastCruce);
   localStorage.setItem(LS_MYNAME, getMyName());
   localStorage.setItem(LS_OTHERNAME, getOtherName());
 }
@@ -1553,19 +1612,30 @@ window.addEventListener("DOMContentLoaded", function(){
     sim.excluded = {};
     setSimStage("simAsk");
   });
-  $("btnSimAll").addEventListener("click", function(){ sim.excluded = {}; renderSimResult(); });
+  $("btnSimAll").addEventListener("click", function(){
+    sim.excluded = {};
+    renderSimResult();
+    enterSimMode(simSelected());
+  });
   $("btnSimAdjust").addEventListener("click", function(){ renderSimAdjust(); setSimStage("simAdjust"); });
   $("simAdjustLists").addEventListener("change", function(e){
     var lab = e.target.closest ? e.target.closest(".simitem") : null;
     if (lab) lab.classList.toggle("off", !lab.querySelector("input").checked);
   });
-  $("btnSimGen").addEventListener("click", function(){ readSimAdjust(); renderSimResult(); });
+  $("btnSimGen").addEventListener("click", function(){
+    readSimAdjust();
+    renderSimResult();
+    enterSimMode(simSelected());
+  });
   $("btnSimCancel").addEventListener("click", function(){ setSimStage("simAsk"); });
   $("btnSimExit").addEventListener("click", resetSim);
   $("btnSimApply").addEventListener("click", applySim);
+  $("btnSimExitTop").addEventListener("click", resetSim);
+  $("btnSimApplyTop").addEventListener("click", applySim);
   $("btnSimOtherList").addEventListener("click", function(){
     shareOrCopy(buildOtherUpdatedList(), $("btnSimOtherList"));
   });
+  window.addEventListener("resize", updateSimH);
 });
 </script>
 </body>
