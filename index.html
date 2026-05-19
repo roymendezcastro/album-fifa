@@ -143,8 +143,12 @@
   .fl{font-size:1.18em; line-height:1}
   .notice{font-size:12.5px; margin:0 0 12px; color:#92400e; background:#fffbeb; border:1px solid #fcd34d; border-radius:8px; padding:10px 12px; font-weight:600; line-height:1.5}
   #simBlock h4{margin:14px 0 4px; font-size:13px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em}
+  #simBlock .simgroup{padding:10px 4px; border-bottom:1px solid var(--line)}
+  #simBlock .simgroup:last-child{border-bottom:0}
+  #simBlock .simgroup .ghead{font-weight:700; font-size:14px; margin-bottom:6px; display:flex; align-items:center; gap:6px}
+  #simBlock .simnums{display:flex; flex-wrap:wrap; gap:6px}
   #simBlock .simitem{display:inline-flex; align-items:center; gap:6px; background:#f8fafc;
-    border:1px solid var(--line); border-radius:8px; padding:6px 10px; margin:4px 6px 0 0; font-size:13px; cursor:pointer}
+    border:1px solid var(--line); border-radius:8px; padding:5px 10px; font-size:13px; cursor:pointer; min-width:54px; justify-content:center}
   #simBlock .simitem input{margin:0}
   #simBlock .simitem.off{opacity:.45; text-decoration:line-through}
   .simbox{background:#f8fafc; border:1px dashed #94a3b8; border-radius:10px; padding:12px 14px; margin:6px 0 12px}
@@ -806,20 +810,30 @@ function simProgress(d){
 }
 function renderSimAdjust(){
   var it = simItems(), A = getMyName() || "Yo", B = getOtherName() || "La otra persona";
-  function group(title, arr, side){
+  function side(title, arr, sideKey){
     if (!arr.length) return '<h4>'+esc(title)+'</h4><p class="empty">(ninguna)</p>';
+    // Agrupar por sección y mantener el orden del álbum (SECTIONS).
+    var bySid = {};
+    arr.forEach(function(x){ (bySid[x.sid] = bySid[x.sid] || []).push(x); });
     var h = '<h4>'+esc(title)+'</h4>';
-    arr.forEach(function(x){
-      var k = simKey(side, x), on = !sim.excluded[k];
-      h += '<label class="simitem'+(on?'':' off')+'" data-k="'+esc(k)+'">'+
-           '<input type="checkbox" '+(on?'checked':'')+'> '+
-           esc(teamParts(x.lab).name)+' '+esc(x.num)+'</label>';
+    SECTIONS.forEach(function(sec){
+      var arr2 = bySid[sec.id];
+      if (!arr2 || !arr2.length) return;
+      h += '<div class="simgroup">' +
+        '<div class="ghead">' + teamHTML(sec.label) + '</div>' +
+        '<div class="simnums">';
+      arr2.forEach(function(x){
+        var k = simKey(sideKey, x), on = !sim.excluded[k];
+        h += '<label class="simitem'+(on?'':' off')+'" data-k="'+esc(k)+'">'+
+             '<input type="checkbox" '+(on?'checked':'')+'> '+esc(x.num)+'</label>';
+      });
+      h += '</div></div>';
     });
     return h;
   }
   $("simAdjustLists").innerHTML =
-    group(A+" entrega (yo doy)", it.give, "give") +
-    group(B+" entrega (yo recibo)", it.recv, "recv");
+    side(A+" entrega (yo doy)", it.give, "give") +
+    side(B+" entrega (yo recibo)", it.recv, "recv");
 }
 function readSimAdjust(){
   sim.excluded = {};
