@@ -82,10 +82,20 @@
   .progbar>span{display:block; height:100%; border-radius:999px; background:linear-gradient(90deg,var(--accent),#16a34a)}
   .progsub{font-size:12px; color:var(--muted); margin-top:6px}
   .modebar{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:4px 0 12px}
+  #albumCtrls{position:sticky; top:var(--tabh,48px); z-index:4; background:#fff;
+    margin:0 -16px 10px; padding:8px 16px; border-bottom:1px solid var(--line)}
+  #albumCtrls .modebar{margin:6px 0}
   .modebar .mlabel{font-size:12px; color:var(--muted); font-weight:600}
   .mode{padding:9px 14px; border:1px solid var(--line); border-radius:999px; background:#fff; cursor:pointer; font:inherit; font-size:13px; font-weight:600}
   .mode.add.on{background:#dcfce7; border-color:#16a34a; color:#166534}
   .mode.sub.on{background:#fee2e2; border-color:#dc2626; color:#991b1b}
+  .mode.flt.on{background:#eff6ff; border-color:var(--accent); color:#1e40af}
+  .mode.lock{background:#fee2e2; border-color:#dc2626; color:#991b1b; font-weight:700}
+  .mode.lock.on{background:#dcfce7; border-color:#16a34a; color:#166534}
+  .mode.lock.flash{outline:3px solid #dc2626; outline-offset:2px}
+  #albumBlock.locked .editmode{display:none}
+  #albumBlock.locked #albumGrid .cell{cursor:default}
+  #albumBlock.locked #albumGrid{opacity:.92}
   .seclist{margin-top:6px}
   .sec{margin:0 0 14px}
   .sec h4{margin:0 0 6px; font-size:13px; display:flex; align-items:center; gap:6px}
@@ -214,11 +224,23 @@
   </section>
 
   <section class="block no-print" data-tab="album" id="albumBlock">
-    <h2>Mi álbum — toca una postal para editar</h2>
-    <div class="modebar">
-      <span class="mlabel">Al tocar:</span>
-      <button class="mode add on" id="btnAdd">+ Conseguí una</button>
-      <button class="mode sub" id="btnSub">− Di una repetida</button>
+    <h2>Mi álbum</h2>
+    <div id="albumCtrls">
+      <div class="modebar">
+        <button class="mode lock" id="btnLock"></button>
+      </div>
+      <div class="modebar editmode">
+        <span class="mlabel">Al tocar:</span>
+        <button class="mode add on" id="btnAdd">+ Sumar (conseguí)</button>
+        <button class="mode sub" id="btnSub">− Restar (entregué)</button>
+      </div>
+      <div class="modebar">
+        <span class="mlabel">Mostrar:</span>
+        <button class="mode flt on" data-f="all">Todo</button>
+        <button class="mode flt" data-f="falta">Faltan</button>
+        <button class="mode flt" data-f="repe">Repetidas</button>
+        <button class="mode flt" data-f="tengo">La tengo</button>
+      </div>
     </div>
     <div class="gridlegend">
       <span class="l0"><i></i>Falta</span>
@@ -1111,20 +1133,38 @@ function cellInner(n, c){
   return esc(n) + (c >= 2 ? '<span class="bdg">+' + (c - 1) + '</span>' : '');
 }
 
+var albumFilter = "all";   // all | falta | repe | tengo
+function cellMatchesFilter(c){
+  if (albumFilter === "falta") return c <= 0;
+  if (albumFilter === "tengo") return c >= 1;   // todo lo que posees (incluye repetidas)
+  if (albumFilter === "repe")  return c >= 2;
+  return true;
+}
 function renderAlbum(){
-  var html = "";
+  var html = "", shown = 0;
   SECTIONS.forEach(function(sec){
-    var have = 0, cells = "";
+    var have = 0, cells = "", any = 0;
     sec.nums.forEach(function(n){
       var c = getCount(sec.id, n);
       if (c >= 1) have++;
+      if (!cellMatchesFilter(c)) return;
+      any++;
       cells += '<div class="cell ' + cellClass(c) + '" data-sid="' + sec.id +
         '" data-num="' + esc(n) + '">' + cellInner(n, c) + '</div>';
     });
+    if (!any) return;                       // oculta equipos sin coincidencias
+    shown++;
     html += '<div class="sec" data-sid="' + sec.id + '"><h4>' + teamHTML(sec.label) +
       ' <span class="scount">' + have + '/' + sec.nums.length + '</span></h4>' +
       '<div class="grid">' + cells + '</div></div>';
   });
+  if (!shown){
+    var msg = albumFilter === "repe" ? "No tienes repetidas." :
+              albumFilter === "falta" ? "No te falta ninguna. ¡Completo!" :
+              albumFilter === "tengo" ? "Aún no tienes ninguna." :
+              "Aún no hay datos.";
+    html = '<p class="empty">' + msg + '</p>';
+  }
   $("albumGrid").innerHTML = html;
 }
 
@@ -1133,6 +1173,31 @@ function setMode(m){
   editMode = m;
   $("btnAdd").classList.toggle("on", m === "add");
   $("btnSub").classList.toggle("on", m === "sub");
+}
+function setFilter(f){
+  albumFilter = f;
+  var b = document.querySelectorAll("#albumBlock .mode.flt");
+  for (var i = 0; i < b.length; i++){
+    b[i].classList.toggle("on", b[i].getAttribute("data-f") === f);
+  }
+  renderAlbum();
+}
+
+var albumLocked = true;   // siempre abre bloqueado (no se persiste)
+function setLock(locked){
+  albumLocked = locked;
+  var b = $("btnLock"), blk = $("albumBlock");
+  if (b){
+    b.textContent = locked ? "🔒 Bloqueado — toca para editar"
+                           : "🔓 Editando — toca para bloquear";
+    b.classList.toggle("on", !locked);
+  }
+  if (blk) blk.classList.toggle("locked", locked);
+}
+function flashLock(){
+  var b = $("btnLock"); if (!b) return;
+  b.classList.add("flash");
+  setTimeout(function(){ b.classList.remove("flash"); }, 600);
 }
 
 function refreshDerived(){
@@ -1165,6 +1230,7 @@ function setTab(t){
     btns[i].classList.toggle("on", btns[i].getAttribute("data-go") === t);
   }
   localStorage.setItem(LS_TAB, t);
+  setLock(true);                 // al cambiar de pestaña vuelve a bloquearse
   window.scrollTo(0, 0);
 }
 
@@ -1184,6 +1250,13 @@ window.addEventListener("DOMContentLoaded", function(){
   if (savedOtherName) $("otherName").value = savedOtherName;
 
   rebuildAll();
+
+  function syncTabH(){
+    var tb = $("tabbar");
+    document.documentElement.style.setProperty("--tabh", (tb ? tb.offsetHeight : 48) + "px");
+  }
+  syncTabH();
+  window.addEventListener("resize", syncTabH);
 
   var savedTab = localStorage.getItem(LS_TAB);
   setTab(savedTab || (Object.keys(model.own).length ? "album" : "inicio"));
@@ -1216,15 +1289,35 @@ window.addEventListener("DOMContentLoaded", function(){
     setTab("album");
   });
 
+  $("btnLock").addEventListener("click", function(){ setLock(!albumLocked); });
   $("btnAdd").addEventListener("click", function(){ setMode("add"); });
   $("btnSub").addEventListener("click", function(){ setMode("sub"); });
+  var fbtns = document.querySelectorAll("#albumBlock .mode.flt");
+  for (var fi = 0; fi < fbtns.length; fi++){
+    fbtns[fi].addEventListener("click", function(){ setFilter(this.getAttribute("data-f")); });
+  }
 
   $("albumGrid").addEventListener("click", function(e){
     var cell = e.target.closest ? e.target.closest(".cell") : null;
     if (!cell) return;
+    if (albumLocked){ flashLock(); return; }   // protege de toques accidentales
     var sid = cell.getAttribute("data-sid");
     var num = cell.getAttribute("data-num");
-    var c = clamp(getCount(sid, num) + (editMode === "add" ? 1 : -1), 0, 99);
+    var cur = getCount(sid, num), c;
+    if (editMode === "add"){
+      c = clamp(cur + 1, 0, 99);
+    } else {
+      if (cur >= 2){
+        c = cur - 1;                                  // entregaste un sobrante
+      } else if (cur === 1){
+        if (!confirm("¿Marcar como FALTANTE? La quitarás de tu álbum (corrección de error).")) return;
+        c = 0;
+      } else {
+        alert("No la tienes; nada que entregar.");
+        return;
+      }
+    }
+    if (c === cur) return;
     setCount(sid, num, c);
     saveModel();
     cell.className = "cell " + cellClass(c);
