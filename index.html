@@ -142,6 +142,15 @@
   .field input{padding:10px 12px; border:1px solid var(--line); border-radius:8px; font:inherit; font-size:14px}
   .fl{font-size:1.18em; line-height:1}
   .notice{font-size:12.5px; margin:0 0 12px; color:#92400e; background:#fffbeb; border:1px solid #fcd34d; border-radius:8px; padding:10px 12px; font-weight:600; line-height:1.5}
+  #simBlock h4{margin:14px 0 4px; font-size:13px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em}
+  #simBlock .simitem{display:inline-flex; align-items:center; gap:6px; background:#f8fafc;
+    border:1px solid var(--line); border-radius:8px; padding:6px 10px; margin:4px 6px 0 0; font-size:13px; cursor:pointer}
+  #simBlock .simitem input{margin:0}
+  #simBlock .simitem.off{opacity:.45; text-decoration:line-through}
+  .simbox{background:#f8fafc; border:1px dashed #94a3b8; border-radius:10px; padding:12px 14px; margin:6px 0 12px}
+  .simbadge{display:inline-block; background:#475569; color:#fff; font-size:11px; font-weight:700;
+    border-radius:6px; padding:2px 8px; letter-spacing:.04em; margin-bottom:8px}
+  .simbox .progsub{color:#334155}
   .credit{max-width:1100px; margin:0 auto; padding:14px 16px 34px; text-align:center; color:var(--muted); font-size:12px}
   .tabs{position:sticky; top:0; z-index:5; display:flex; gap:4px; overflow-x:auto; background:#fff;
     border-bottom:1px solid var(--line); padding:6px 8px; -webkit-overflow-scrolling:touch}
@@ -307,6 +316,43 @@
       </div>
     </div>
     <div id="cruceResult"></div>
+
+    <div class="no-print" id="simBlock" style="display:none">
+      <h2 style="margin-top:24px">Simulación</h2>
+
+      <div id="simStart">
+        <p class="hint">Mira cómo quedaría tu álbum si haces este intercambio. <b>No modifica tus datos</b> hasta que toques “Aplicar”.</p>
+        <div class="row"><button class="primary" id="btnSimStart">Simular intercambio</button></div>
+      </div>
+
+      <div id="simAsk" style="display:none">
+        <p class="hint">¿Todas las postales del trato siguen disponibles?</p>
+        <div class="row">
+          <button class="primary" id="btnSimAll">Sí, todas</button>
+          <button class="amber" id="btnSimAdjust">Quitar algunas…</button>
+        </div>
+      </div>
+
+      <div id="simAdjust" style="display:none">
+        <p class="hint">Destilda las que ya no estén disponibles (solo se pueden quitar).</p>
+        <div id="simAdjustLists"></div>
+        <div class="row">
+          <button class="primary" id="btnSimGen">Generar simulación</button>
+          <button id="btnSimCancel">Cancelar</button>
+        </div>
+      </div>
+
+      <div id="simResult" style="display:none">
+        <div id="simResultBody"></div>
+        <div class="row" id="simResultActions">
+          <button class="primary" id="btnSimApply">Aplicar al álbum</button>
+          <button id="btnSimExit">Salir de simulación</button>
+        </div>
+        <div class="row" id="simAfter" style="display:none">
+          <button class="green" id="btnSimOtherList">Generar lista actualizada de la otra persona</button>
+        </div>
+      </div>
+    </div>
   </section>
 
 </main>
@@ -621,13 +667,15 @@ function computeCruce(my, other){
 }
 
 function renderCruce(my, other){
-  var acts = $("cruceActions");
+  var acts = $("cruceActions"), sim = $("simBlock");
   if (!other || (!Object.keys(other.faltan).length && !Object.keys(other.repes).length)){
     $("cruceResult").innerHTML = '<p class="empty">Pega la lista de la otra persona y pulsa “Calcular intercambio”.</p>';
     if (acts) acts.style.display = "none";
+    if (sim){ sim.style.display = "none"; resetSim(); }
     return;
   }
   if (acts) acts.style.display = "";
+  if (sim) sim.style.display = "";
   var c = computeCruce(my, other);
   var leDoy = c.leDoy, meDa = c.meDa;
   var A = getMyName() || "Yo";
@@ -648,6 +696,162 @@ function renderCruce(my, other){
     '<div class="cruce-side" style="margin-top:14px">' +
       renderCruceBlock(meDa, B + " le da a " + A, "No tiene repetidas que necesites.", "warn") +
     '</div>';
+}
+
+// ---- Simulación de intercambio (seguro: no escribe hasta "Aplicar") ----
+var sim = { excluded:{}, applied:null };
+function simItems(){
+  var give = [], recv = [];
+  if (lastCruce){
+    Object.keys(lastCruce.leDoy).forEach(function(lab){
+      var sid = msgSectionId(lab); if (!sid) return;
+      lastCruce.leDoy[lab].forEach(function(n){ give.push({ sid:sid, num:n, lab:lab }); });
+    });
+    Object.keys(lastCruce.meDa).forEach(function(lab){
+      var sid = msgSectionId(lab); if (!sid) return;
+      lastCruce.meDa[lab].forEach(function(n){ recv.push({ sid:sid, num:n, lab:lab }); });
+    });
+  }
+  return { give:give, recv:recv };
+}
+function simKey(side, it){ return side + "|" + it.sid + "#" + it.num; }
+function simSelected(){
+  var all = simItems();
+  return {
+    give: all.give.filter(function(it){ return !sim.excluded[simKey("give", it)]; }),
+    recv: all.recv.filter(function(it){ return !sim.excluded[simKey("recv", it)]; })
+  };
+}
+function setSimStage(s){
+  ["simStart","simAsk","simAdjust","simResult"].forEach(function(id){
+    var e = $(id); if (e) e.style.display = (id === s) ? "" : "none";
+  });
+}
+function resetSim(){
+  sim.excluded = {}; sim.applied = null;
+  if ($("simAfter")) $("simAfter").style.display = "none";
+  if ($("simResultActions")) $("simResultActions").style.display = "";
+  setSimStage("simStart");
+}
+function simDeltas(sel){
+  var d = {};
+  sel.give.forEach(function(it){ d[it.sid+"#"+it.num] = (d[it.sid+"#"+it.num]||0) - 1; });
+  sel.recv.forEach(function(it){ d[it.sid+"#"+it.num] = (d[it.sid+"#"+it.num]||0) + 1; });
+  return d;
+}
+function simProgress(d){
+  var total = 0, have = 0, comp = 0;
+  SECTIONS.forEach(function(s){
+    var falt = 0;
+    s.nums.forEach(function(n){
+      var c = getCount(s.id, n) + (d[s.id+"#"+n] || 0);
+      if (c < 0) c = 0;
+      if (c >= 1) have++; else falt++;
+    });
+    total += s.nums.length;
+    if (falt === 0) comp++;
+  });
+  return { total:total, have:have, missing:total-have,
+           pct: have >= total ? 100 : Math.floor(have/total*100), completos:comp };
+}
+function renderSimAdjust(){
+  var it = simItems(), A = getMyName() || "Yo", B = getOtherName() || "La otra persona";
+  function group(title, arr, side){
+    if (!arr.length) return '<h4>'+esc(title)+'</h4><p class="empty">(ninguna)</p>';
+    var h = '<h4>'+esc(title)+'</h4>';
+    arr.forEach(function(x){
+      var k = simKey(side, x), on = !sim.excluded[k];
+      h += '<label class="simitem'+(on?'':' off')+'" data-k="'+esc(k)+'">'+
+           '<input type="checkbox" '+(on?'checked':'')+'> '+
+           esc(teamParts(x.lab).name)+' '+esc(x.num)+'</label>';
+    });
+    return h;
+  }
+  $("simAdjustLists").innerHTML =
+    group(A+" entrega (yo doy)", it.give, "give") +
+    group(B+" entrega (yo recibo)", it.recv, "recv");
+}
+function readSimAdjust(){
+  sim.excluded = {};
+  var ls = $("simAdjustLists").querySelectorAll(".simitem");
+  for (var i = 0; i < ls.length; i++){
+    var cb = ls[i].querySelector("input");
+    if (cb && !cb.checked) sim.excluded[ls[i].getAttribute("data-k")] = 1;
+  }
+}
+function renderSimResult(){
+  var sel = simSelected();
+  var before = simProgress({}), after = simProgress(simDeltas(sel));
+  $("simResultBody").innerHTML =
+    '<div class="simbox"><span class="simbadge">SIMULACIÓN — no modifica tu álbum</span>' +
+    '<div class="prog"><div class="progtop"><span>Progreso si haces el trato</span><b>'+after.pct+'%</b></div>' +
+    '<div class="progbar"><span style="width:'+after.pct+'%"></span></div>' +
+    '<div class="progsub">Antes: '+before.pct+'% ('+before.have+'/'+before.total+')'+
+      ' → Después: '+after.pct+'% ('+after.have+'/'+after.total+')'+
+      ' · +'+sel.recv.length+' recibidas · −'+sel.give.length+' entregadas'+
+      ' · Equipos completos: '+before.completos+' → '+after.completos+'</div></div></div>';
+  $("simResultActions").style.display = "";
+  $("simAfter").style.display = "none";
+  setSimStage("simResult");
+}
+function applySim(){
+  var sel = simSelected();
+  if (!sel.give.length && !sel.recv.length){ alert("No hay nada que aplicar."); return; }
+  if (!confirm("¿Aplicar este intercambio a tu álbum?\nRecibes " + sel.recv.length +
+      " y entregas " + sel.give.length + ". Esto modifica tus datos.")) return;
+  sel.give.forEach(function(it){ setCount(it.sid, it.num, clamp(getCount(it.sid,it.num)-1, 0, 99)); });
+  sel.recv.forEach(function(it){ setCount(it.sid, it.num, clamp(getCount(it.sid,it.num)+1, 0, 99)); });
+  saveModel();
+  sim.applied = sel;
+  rebuildAll();   // recalcula cruce (debe quedar en 0)
+  var zeros = countAll(lastCruce ? lastCruce.leDoy : {}) + countAll(lastCruce ? lastCruce.meDa : {});
+  $("simBlock").style.display = "";
+  $("simResultBody").innerHTML =
+    '<div class="simbox"><span class="simbadge" style="background:#16a34a">APLICADO</span>' +
+    '<div class="progsub">Intercambio aplicado a tu álbum. Cruce recalculado: <b>'+zeros+
+    '</b> coincidencia'+(zeros===1?'':'s')+(zeros===0?' ✓ (correcto)':'')+'.</div></div>';
+  $("simResultActions").style.display = "none";
+  $("simAfter").style.display = "";
+  setSimStage("simResult");
+}
+function buildOtherUpdatedList(){
+  var sel = sim.applied || simSelected();
+  var o = parseList($("otherInput").value);
+  var fal = {}, rep = {};
+  Object.keys(o.faltan).forEach(function(lab){
+    var sid = msgSectionId(lab); if (!sid) return;
+    fal[sid] = fal[sid] || {};
+    o.faltan[lab].forEach(function(t){ fal[sid][parseNumTok(t).num] = 1; });
+  });
+  Object.keys(o.repes).forEach(function(lab){
+    var sid = msgSectionId(lab); if (!sid) return;
+    rep[sid] = rep[sid] || {};
+    o.repes[lab].forEach(function(t){ var p = parseNumTok(t); rep[sid][p.num] = (p.count && p.count >= 1) ? p.count : 1; });
+  });
+  sel.give.forEach(function(it){ if (fal[it.sid]) delete fal[it.sid][it.num]; });
+  sel.recv.forEach(function(it){
+    if (rep[it.sid] && rep[it.sid][it.num] != null){
+      rep[it.sid][it.num] -= 1;
+      if (rep[it.sid][it.num] < 1) delete rep[it.sid][it.num];
+    }
+  });
+  var B = getOtherName() || "(sin nombre)", A = getMyName() || "alguien";
+  function srt(a,b){ var x=parseInt(a,10), y=parseInt(b,10); return (x-y) || a.localeCompare(b); }
+  var out = ["INTERCAMBIO ÁLBUM FIFA — Lista para cruce",
+             "Álbum: " + (model.album || "Usa Méx Can 26"), "Me faltan"];
+  SECTIONS.forEach(function(s){
+    var m = fal[s.id]; if (!m) return;
+    var ns = Object.keys(m).sort(srt);
+    if (ns.length) out.push(s.label + ": " + ns.join(", "));
+  });
+  out.push("Repetidas");
+  SECTIONS.forEach(function(s){
+    var m = rep[s.id]; if (!m) return;
+    var ns = Object.keys(m).sort(srt);
+    if (ns.length) out.push(s.label + ": " + ns.map(function(n){ return m[n] >= 2 ? n+"×"+m[n] : n; }).join(", "));
+  });
+  out.push("— Lista de " + B + " (actualizada tras intercambio con " + A + ")");
+  return out.join("\n");
 }
 
 function rankTeams(map, topN){
@@ -1330,9 +1534,9 @@ window.addEventListener("DOMContentLoaded", function(){
   });
 
   $("btnShare").addEventListener("click", copyShare);
-  $("btnCruce").addEventListener("click", refreshDerived);
-  $("myName").addEventListener("change", refreshDerived);
-  $("otherName").addEventListener("change", refreshDerived);
+  $("btnCruce").addEventListener("click", function(){ resetSim(); refreshDerived(); });
+  $("myName").addEventListener("change", function(){ resetSim(); refreshDerived(); });
+  $("otherName").addEventListener("change", function(){ resetSim(); refreshDerived(); });
 
   $("btnPrintList").addEventListener("click", function(){ sharePdf("mylist"); });
   $("btnPrintListHtml").addEventListener("click", function(){ printDoc("mylist"); });
@@ -1340,6 +1544,28 @@ window.addEventListener("DOMContentLoaded", function(){
   $("btnPrintCruce").addEventListener("click", function(){ sharePdf("cruce"); });
   $("btnPrintCruceHtml").addEventListener("click", function(){ printDoc("cruce"); });
   $("btnCopyCruce").addEventListener("click", function(){ copySummary("cruce", "btnCopyCruce"); });
+
+  // --- Simulación ---
+  $("btnSimStart").addEventListener("click", function(){
+    if (!lastCruce || (!Object.keys(lastCruce.leDoy).length && !Object.keys(lastCruce.meDa).length)){
+      alert("No hay intercambio para simular."); return;
+    }
+    sim.excluded = {};
+    setSimStage("simAsk");
+  });
+  $("btnSimAll").addEventListener("click", function(){ sim.excluded = {}; renderSimResult(); });
+  $("btnSimAdjust").addEventListener("click", function(){ renderSimAdjust(); setSimStage("simAdjust"); });
+  $("simAdjustLists").addEventListener("change", function(e){
+    var lab = e.target.closest ? e.target.closest(".simitem") : null;
+    if (lab) lab.classList.toggle("off", !lab.querySelector("input").checked);
+  });
+  $("btnSimGen").addEventListener("click", function(){ readSimAdjust(); renderSimResult(); });
+  $("btnSimCancel").addEventListener("click", function(){ setSimStage("simAsk"); });
+  $("btnSimExit").addEventListener("click", resetSim);
+  $("btnSimApply").addEventListener("click", applySim);
+  $("btnSimOtherList").addEventListener("click", function(){
+    shareOrCopy(buildOtherUpdatedList(), $("btnSimOtherList"));
+  });
 });
 </script>
 </body>
