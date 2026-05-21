@@ -98,8 +98,15 @@
   #albumBlock.locked #albumGrid{opacity:.92}
   .seclist{margin-top:6px}
   .sec{margin:0 0 14px}
-  .sec h4{margin:0 0 6px; font-size:13px; display:flex; align-items:center; gap:6px}
+  .sec h4{margin:0 0 6px; font-size:13px; display:flex; align-items:center; gap:6px;
+    cursor:pointer; user-select:none; -webkit-tap-highlight-color:transparent}
+  .sec h4::after{content:"▼"; margin-left:auto; color:var(--muted); font-size:11px}
+  .sec.collapsed h4::after{content:"▶"}
+  .sec.collapsed .grid{display:none}
   .sec .scount{font-weight:600; color:var(--muted); font-size:11px}
+  .searchbar{gap:8px}
+  #albumSearch{flex:1; min-width:160px; padding:8px 12px; border:1px solid var(--line);
+    border-radius:8px; font:inherit; font-size:14px}
   .grid{display:flex; flex-wrap:wrap; gap:6px}
   .cell{
     position:relative; min-width:36px; height:36px; padding:0 6px;
@@ -273,6 +280,10 @@
         <button class="mode flt" data-f="falta">Faltan</button>
         <button class="mode flt" data-f="repe">Repetidas</button>
         <button class="mode flt" data-f="tengo">La tengo</button>
+      </div>
+      <div class="modebar searchbar">
+        <input id="albumSearch" type="search" placeholder="🔍 Buscar equipo, código o número…" autocomplete="off">
+        <button class="mode" id="btnCollapseAll" type="button">Colapsar todo</button>
       </div>
     </div>
     <div class="gridlegend">
@@ -1002,10 +1013,21 @@ function renderDashboard(data, cruce){
       }).join("") + '</div>'
     : '<p class="empty">Ninguno con 1–2 pendientes.</p>';
 
+  // Países (equipos) completos: secciones de país sin faltantes.
+  var doneTeams = SECTIONS.filter(function(sec){
+    return isTeamSection(sec) && !(data.faltan[sec.label] && data.faltan[sec.label].length);
+  });
+  var doneHTML = doneTeams.length
+    ? '<div class="tags">' + doneTeams.map(function(sec){
+        return '<span class="tag">' + teamHTML(sec.label) + '</span>';
+      }).join("") + '</div>'
+    : '<p class="empty">Aún ningún equipo completo.</p>';
+
   var panels =
     '<div class="panel"><h3>Donde más te falta</h3>' + barsHTML(rankTeams(data.faltan, 8), 'f') + '</div>' +
     '<div class="panel"><h3>Lo que más puedes ofrecer</h3>' + barsHTML(rankTeams(data.repes, 8), 'r') + '</div>' +
-    '<div class="panel"><h3>Casi completos (te falta 1–2)</h3>' + casiHTML + '</div>';
+    '<div class="panel"><h3>Casi completos (te falta 1–2)</h3>' + casiHTML + '</div>' +
+    '<div class="panel"><h3>Equipos completos (' + doneTeams.length + '/' + COUNTRY_CODES.length + ')</h3>' + doneHTML + '</div>';
 
   if (cruce){
     var ld = countAll(cruce.leDoy), md = countAll(cruce.meDa);
@@ -1407,38 +1429,72 @@ function cellInner(n, c){
 }
 
 var albumFilter = "all";   // all | falta | repe | tengo
+var albumSearch = "";
+var collapsedSecs = {};    // sid -> true si está colapsado
 function cellMatchesFilter(c){
   if (albumFilter === "falta") return c <= 0;
   if (albumFilter === "tengo") return c >= 1;   // todo lo que posees (incluye repetidas)
   if (albumFilter === "repe")  return c >= 2;
   return true;
 }
+function searchTokens(){
+  var q = (albumSearch || "").trim().toLowerCase();
+  if (!q) return { txt:[], num:[] };
+  var txt = [], num = [];
+  q.split(/\s+/).filter(Boolean).forEach(function(t){
+    (/^(00|\d+)$/.test(t) ? num : txt).push(t);
+  });
+  return { txt:txt, num:num };
+}
+function sectionMatchesSearchText(sec){
+  var t = searchTokens().txt;
+  if (!t.length) return true;
+  var hay = (teamParts(sec.label).name + " " + sec.id).toLowerCase();
+  return t.every(function(x){ return hay.indexOf(x) !== -1; });
+}
+function cellMatchesSearchNum(num){
+  var tk = searchTokens();
+  if (!tk.num.length) return true;
+  return tk.num.some(function(t){ return String(num) === t; });
+}
+function updateCollapseAllLabel(){
+  var b = $("btnCollapseAll"); if (!b) return;
+  var allCollapsed = SECTIONS.every(function(s){ return !!collapsedSecs[s.id]; });
+  b.textContent = allCollapsed ? "Expandir todo" : "Colapsar todo";
+}
 function renderAlbum(){
   var html = "", shown = 0;
   SECTIONS.forEach(function(sec){
+    var secMatch = sectionMatchesSearchText(sec);
+    if (!secMatch) return;                  // no coincide con el texto buscado
     var have = 0, cells = "", any = 0;
     sec.nums.forEach(function(n){
       var c = getCount(sec.id, n);
       if (c >= 1) have++;
       if (!cellMatchesFilter(c)) return;
+      if (!cellMatchesSearchNum(n)) return;
       any++;
       cells += '<div class="cell ' + cellClass(c) + '" data-sid="' + sec.id +
         '" data-num="' + esc(n) + '">' + cellInner(n, c) + '</div>';
     });
     if (!any) return;                       // oculta equipos sin coincidencias
     shown++;
-    html += '<div class="sec" data-sid="' + sec.id + '"><h4>' + teamHTML(sec.label) +
+    var cls = "sec" + (collapsedSecs[sec.id] ? " collapsed" : "");
+    html += '<div class="' + cls + '" data-sid="' + sec.id + '"><h4>' + teamHTML(sec.label) +
       ' <span class="scount">' + have + '/' + sec.nums.length + '</span></h4>' +
       '<div class="grid">' + cells + '</div></div>';
   });
   if (!shown){
-    var msg = albumFilter === "repe" ? "No tienes repetidas." :
+    var hasSearch = (albumSearch || "").trim().length > 0;
+    var msg = hasSearch ? "Sin coincidencias para tu búsqueda." :
+              albumFilter === "repe" ? "No tienes repetidas." :
               albumFilter === "falta" ? "No te falta ninguna. ¡Completo!" :
               albumFilter === "tengo" ? "Aún no tienes ninguna." :
               "Aún no hay datos.";
     html = '<p class="empty">' + msg + '</p>';
   }
   $("albumGrid").innerHTML = html;
+  updateCollapseAllLabel();
 }
 
 var editMode = "add";
@@ -1571,8 +1627,27 @@ window.addEventListener("DOMContentLoaded", function(){
   for (var fi = 0; fi < fbtns.length; fi++){
     fbtns[fi].addEventListener("click", function(){ setFilter(this.getAttribute("data-f")); });
   }
+  $("albumSearch").addEventListener("input", function(){
+    albumSearch = this.value;
+    renderAlbum();
+  });
+  $("btnCollapseAll").addEventListener("click", function(){
+    var allCollapsed = SECTIONS.every(function(s){ return !!collapsedSecs[s.id]; });
+    collapsedSecs = {};
+    if (!allCollapsed) SECTIONS.forEach(function(s){ collapsedSecs[s.id] = true; });
+    renderAlbum();
+  });
 
   $("albumGrid").addEventListener("click", function(e){
+    // ¿Toque en cabecera de equipo? colapsa/expande esa sección
+    var head = e.target.closest ? e.target.closest("h4") : null;
+    if (head && head.parentNode && head.parentNode.classList.contains("sec")){
+      var sid0 = head.parentNode.getAttribute("data-sid");
+      collapsedSecs[sid0] = !collapsedSecs[sid0];
+      head.parentNode.classList.toggle("collapsed", !!collapsedSecs[sid0]);
+      updateCollapseAllLabel();
+      return;
+    }
     var cell = e.target.closest ? e.target.closest(".cell") : null;
     if (!cell) return;
     if (albumLocked){ flashLock(); return; }   // protege de toques accidentales
