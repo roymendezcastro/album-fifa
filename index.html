@@ -543,9 +543,9 @@ function parseList(text){
     if (!line) continue;
     if (/^Figuritas App\b/i.test(line) || /^INTERCAMBIO\b/i.test(line) || /^Gestor\b/i.test(line)) { section = null; lastLabel = null; continue; }
     if (/^(Álbum|Album)\s*:/i.test(line)) { albumTitle = line.replace(/^[^:]*:\s*/, "").trim(); continue; }
-    if (/^Me faltan\s*:?\s*$/i.test(line))  { section = "faltan"; lastLabel = null; continue; }
-    if (/^Repetidas\s*:?\s*$/i.test(line))  { section = "repes";  lastLabel = null; continue; }
-    if (/^Descarga la app/i.test(line)) break;
+    if (/^(Me faltan|Needs)\s*:?\s*$/i.test(line))  { section = "faltan"; lastLabel = null; continue; }
+    if (/^(Repetidas|Swaps)\s*:?\s*$/i.test(line))  { section = "repes";  lastLabel = null; continue; }
+    if (/^(Descarga la app|Download the app)/i.test(line)) break;
     if (/^(Generad[oa]\b|©)/i.test(line) || line.charAt(0) === "—" || /^-{2,}/.test(line)) break;
     if (/^https?:\/\//i.test(line)) continue;
 
