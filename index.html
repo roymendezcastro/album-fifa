@@ -96,11 +96,13 @@
   .progbar>span{display:block; height:100%; border-radius:999px; background:linear-gradient(90deg,var(--accent),#16a34a)}
   .progsub{font-size:12px; color:var(--muted); margin-top:6px}
   .modebar{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:4px 0 12px}
+  .modebar.filters-bar{flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch}
+  .modebar.filters-bar::-webkit-scrollbar{display:none}
   #albumCtrls{position:sticky; top:var(--tabh,48px); z-index:4; background:#fff;
     margin:0 -16px 10px; padding:8px 16px; border-bottom:1px solid var(--line)}
   #albumCtrls .modebar{margin:6px 0}
   .modebar .mlabel{font-size:12px; color:var(--muted); font-weight:600}
-  .mode{padding:9px 14px; border:1px solid var(--line); border-radius:999px; background:#fff; cursor:pointer; font:inherit; font-size:13px; font-weight:600}
+  .mode{padding:8px 11px; border:1px solid var(--line); border-radius:999px; background:#fff; cursor:pointer; font:inherit; font-size:13px; font-weight:600}
   .mode.add.on{background:#dcfce7; border-color:#16a34a; color:#166534}
   .mode.sub.on{background:#fee2e2; border-color:#dc2626; color:#991b1b}
   .mode.flt.on{background:#eff6ff; border-color:var(--accent); color:#1e40af}
@@ -225,9 +227,10 @@
   body[data-tab="resumen"] section[data-tab="resumen"],
   body[data-tab="intercambio"] section[data-tab="intercambio"]{display:block}
   #btnOpenShare{margin-left:auto; border-left:1px solid var(--line); padding-left:10px !important;
-    color:var(--accent) !important; display:inline-flex; align-items:center}
+    color:var(--accent) !important; display:inline-flex; align-items:center; gap:6px}
   #btnOpenShare:hover{background:#eff6ff}
-  #btnOpenShare svg{display:block; width:20px; height:20px}
+  #btnOpenShare svg{display:block; width:18px; height:18px}
+  #btnOpenShare span{color:var(--accent); font-weight:700}
   #shareModal{display:none; position:fixed; inset:0; z-index:40; background:rgba(0,0,0,.55);
     align-items:flex-start; justify-content:center; padding:16px; overflow-y:auto}
   #shareModal.open{display:flex}
@@ -280,7 +283,7 @@
   <button data-go="album">Álbum</button>
   <button data-go="resumen">Resumen</button>
   <button data-go="intercambio">Cruce</button>
-  <button id="btnOpenShare" type="button" title="Compartir" aria-label="Compartir"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></button>
+  <button id="btnOpenShare" type="button" title="Compartir" aria-label="Compartir"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg><span>Compartir</span></button>
 </nav>
 
 <main>
@@ -346,11 +349,11 @@
         <button class="mode sub" id="btnSub">− Restar</button>
         <button class="mode blk" id="btnBlock" title="Apartar / liberar (no se ofrece en intercambio)">📌 Apartar</button>
       </div>
-      <div class="modebar">
+      <div class="modebar filters-bar">
         <button class="mode flt on" data-f="all">Todo</button>
         <button class="mode flt" data-f="falta">Faltan</button>
         <button class="mode flt" data-f="repe">Repetidas</button>
-        <button class="mode flt" data-f="tengo">La tengo</button>
+        <button class="mode flt" data-f="tengo">Tengo</button>
         <button class="mode flt" data-f="blocked">Apartadas</button>
       </div>
       <div class="modebar searchbar">
@@ -360,7 +363,7 @@
     </div>
     <div class="gridlegend">
       <span class="l0"><i></i>Falta</span>
-      <span class="l1"><i></i>La tengo</span>
+      <span class="l1"><i></i>Tengo</span>
       <span class="l2"><i></i>Repetida (con sobrantes)</span>
     </div>
     <div id="albumGrid" class="seclist"></div>
@@ -2072,8 +2075,8 @@ function setLock(locked){
   albumLocked = locked;
   var b = $("btnLock"), blk = $("albumBlock");
   if (b){
-    b.textContent = locked ? "🔒 Bloqueado — toca editar"
-                           : "🔓 Editando — toca bloquear";
+    b.textContent = locked ? "🔒 Bloqueado — editar"
+                           : "🔓 Editando — bloquear";
     b.classList.toggle("on", !locked);
   }
   if (blk) blk.classList.toggle("locked", locked);
