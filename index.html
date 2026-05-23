@@ -1218,7 +1218,7 @@ function specialSectionsPanel(){
     totalAll += sec.nums.length;
     var status = faltan.length === 0
       ? '<span class="ok">✓ Completo</span>'
-      : '<span class="miss">' + (faltan.length === 1 ? 'Falta la' : 'Faltan las') + ': ' + faltan.join(", ") + '</span>';
+      : '<span class="miss">' + (faltan.length === 1 ? 'Falta la' : 'Faltan') + ': ' + faltan.join(", ") + '</span>';
     return '<div class="sub-row">' + teamHTML(sec.label) +
            ' <b>' + have + '/' + sec.nums.length + '</b> · ' + status + '</div>';
   }).join('');
