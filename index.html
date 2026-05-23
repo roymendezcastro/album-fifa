@@ -26,6 +26,9 @@
   }
   section.block h2{margin:0 0 4px; font-size:16px}
   section.block h2.sep{margin-top:24px}
+  .block-head{display:flex; align-items:center; justify-content:space-between; gap:10px}
+  .dash-subhead{display:flex; align-items:center; justify-content:space-between; gap:10px; margin:18px 0 6px}
+  .dash-subhead h3{margin:0; font-size:13px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em}
   section.block h3{margin:14px 0 6px; font-size:14px; color:#0f172a}
   .callout{background:#ecfdf5; border:1px solid #a7f3d0; border-radius:10px; padding:12px 14px; margin:8px 0 14px}
   .callout p{margin:0 0 8px}
@@ -1193,7 +1196,10 @@ function renderProgress(prog){
 
 // Estado colapsado de los paneles de Resumen. Default: equipos-faltantes expandido,
 // los demás colapsados. Persiste en localStorage.
-var DASH_DEFAULT_COLLAPSED = { "escudos-seleccion": true, "fotos-seleccion": true, "especiales": true };
+var DASH_DEFAULT_COLLAPSED = {
+  "casi-completos": true, "equipos": true,
+  "escudos-seleccion": true, "fotos-seleccion": true, "especiales": true
+};
 var dashCollapsed = (function(){
   try { var s = JSON.parse(localStorage.getItem(LS_DASH_COLLAPSED)); if (s && typeof s === "object") return s; } catch(e){}
   return Object.assign({}, DASH_DEFAULT_COLLAPSED);
@@ -1292,7 +1298,9 @@ function renderDashboard(data, cruce){
   var panels =
     '<div class="panel"><h3>Donde más te falta</h3>' + barsHTML(rankTeams(data.faltan, 8), 'f') + '</div>' +
     '<div class="panel"><h3>Lo que más puedes ofrecer</h3>' + barsHTML(rankTeams(data.repes, 8), 'r') + '</div>' +
-    '<div class="panel"><h3>Casi completos (te falta 1–2)</h3>' + casiHTML + '</div>' +
+    '<div class="dash-subhead"><h3>Detalle por grupo</h3>' +
+      '<button class="mode" id="btnDashToggleAll" type="button" title="Colapsar/expandir todo">⇕</button></div>' +
+    dashPanelHTML("casi-completos", 'Casi completos (te falta 1–2)', casiHTML) +
     dashPanelHTML("equipos", 'Equipos (' + doneTeams.length + '/' + COUNTRY_CODES.length + ')', equiposBody) +
     specialStickerPanel("1", "Escudos de selección", "escudos-seleccion") +
     specialStickerPanel("13", "Fotos de selección", "fotos-seleccion") +
@@ -2333,8 +2341,22 @@ window.addEventListener("DOMContentLoaded", function(){
     tabBtns[ti].addEventListener("click", function(){ setTab(this.getAttribute("data-go")); });
   }
   $("btnOpenShare").addEventListener("click", openShareModal);
-  // Toggle de paneles colapsables en Resumen.
+  // Toggle de paneles colapsables en Resumen (delegación: cubre toggle individual y todos).
   $("dashPanels").addEventListener("click", function(e){
+    // Botón colapsar/expandir todos
+    if (e.target.closest && e.target.closest("#btnDashToggleAll")){
+      var all = document.querySelectorAll('#dashPanels .panel.collapsible');
+      var allCollapsed = Array.prototype.every.call(all, function(p){ return p.classList.contains('collapsed'); });
+      var collapse = !allCollapsed;
+      Array.prototype.forEach.call(all, function(p){
+        var id = p.getAttribute('data-panel');
+        dashCollapsed[id] = collapse;
+        p.classList.toggle('collapsed', collapse);
+      });
+      localStorage.setItem(LS_DASH_COLLAPSED, JSON.stringify(dashCollapsed));
+      return;
+    }
+    // Toggle individual de cada panel colapsable
     var h = e.target.closest ? e.target.closest(".panel.collapsible h3") : null;
     if (!h) return;
     var p = h.parentNode;
