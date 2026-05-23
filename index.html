@@ -322,7 +322,7 @@
     <p class="hint"><b>2. Para restaurar:</b> pegá ese texto en el cuadro de arriba y tocá <b>Importar</b>.</p>
 
     <h2 class="sep">Compartir app</h2>
-    <p class="hint"><b>100% gratis</b> · sin instalar · sin anuncios · sin cuenta. Funciona en Android, iPhone y compu. Tus datos quedan en tu teléfono.</p>
+    <p class="hint"><b>100% gratis</b> · sin instalar · sin anuncios · sin cuenta. <b>Compatible con Figuritas App</b>. Funciona en Android, iPhone y compu. Tus datos quedan en tu teléfono.</p>
     <div class="row">
       <button class="btn-share-app green" type="button">📤 Compartir app</button>
     </div>
@@ -504,7 +504,7 @@
 </div>
 
 <footer class="credit">
-  © 2026 · <a href="https://roymendezcastro.github.io/album-fifa/" target="_blank" rel="noopener">roymendezcastro.github.io/album-fifa</a>
+  © 2026 · <a href="https://roymendezcastro.github.io/album-fifa/" class="btn-share-app" rel="noopener">roymendezcastro.github.io/album-fifa</a>
   · Gestor de Álbum FIFA 2026 por <b>Roy Méndez Castro</b>
 </footer>
 
@@ -516,7 +516,7 @@ var LS_MYNAME = "fifa26_myname", LS_OTHERNAME = "fifa26_othername",
 
 // URL pública de la herramienta y pitch corto, para promover el uso entre usuarios.
 var APP_URL = "https://roymendezcastro.github.io/album-fifa/";
-var APP_PITCH = "Gestor de Álbum FIFA 2026 — 100% gratis, sin instalar, sin anuncios, sin cuenta.";
+var APP_PITCH = "Gestor de Álbum FIFA 2026 — 100% gratis, sin instalar, sin anuncios. Compatible con Figuritas App.";
 var APP_SHARE_MSG = APP_PITCH + " " + APP_URL;
 var APP_FOOTER_TEXT = "\n\n" + APP_PITCH + "\n" + APP_URL;
 
@@ -2230,7 +2230,10 @@ window.addEventListener("DOMContentLoaded", function(){
   // Delegación: cualquier .btn-share-app del DOM, incluso si se renderiza dinámicamente.
   document.addEventListener("click", function(e){
     var b = e.target.closest ? e.target.closest(".btn-share-app") : null;
-    if (b) shareTheApp(b);
+    if (b){
+      if (b.tagName === "A") e.preventDefault();   // evita navegar al mismo URL
+      shareTheApp(b);
+    }
   });
   $("shareModal").addEventListener("click", function(e){ if (e.target === this) closeShareModal(); });
   document.addEventListener("keydown", function(e){
