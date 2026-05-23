@@ -100,8 +100,11 @@
   .tags{display:flex; flex-wrap:wrap; gap:6px; margin-top:4px}
   .tag{background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46; border-radius:6px; padding:3px 8px; font-size:12px; font-weight:600}
   .tag.miss{background:#fef2f2; border-color:#fca5a5; color:#991b1b}
-  .group-row{display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:5px 0}
-  .group-label{font-weight:700; color:var(--muted); font-size:11px; min-width:18px; text-transform:uppercase}
+  .group-row{display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:10px 0}
+  .group-row + .group-row{border-top:1px solid #f1f5f9; padding-top:12px; margin-top:12px}
+  .group-label{font-weight:800; color:#475569; font-size:11px; background:#f1f5f9;
+    border-radius:6px; padding:3px 8px; min-width:22px; text-align:center;
+    text-transform:uppercase; letter-spacing:.04em}
   .prog{margin:2px 0 14px}
   .progtop{display:flex; justify-content:space-between; align-items:baseline; font-weight:700; margin-bottom:6px}
   .progtop b{font-size:22px; color:var(--accent)}
@@ -598,7 +601,7 @@ function groupChipsByMundial(entries){
       return '<span class="tag' + (e.miss ? " miss" : "") + '">' + teamHTML(e.label) +
         (e.extra ? ' · ' + e.extra : '') + '</span>';
     }).join('');
-    return '<div class="group-row"><span class="group-label">' + g + ':</span>' + chips + '</div>';
+    return '<div class="group-row"><span class="group-label">' + g + '</span>' + chips + '</div>';
   }).join('');
 }
 
