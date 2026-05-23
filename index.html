@@ -100,6 +100,8 @@
   .tags{display:flex; flex-wrap:wrap; gap:6px; margin-top:4px}
   .tag{background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46; border-radius:6px; padding:3px 8px; font-size:12px; font-weight:600}
   .tag.miss{background:#fef2f2; border-color:#fca5a5; color:#991b1b}
+  .group-row{display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:5px 0}
+  .group-label{font-weight:700; color:var(--muted); font-size:11px; min-width:18px; text-transform:uppercase}
   .prog{margin:2px 0 14px}
   .progtop{display:flex; justify-content:space-between; align-items:baseline; font-weight:700; margin-bottom:6px}
   .progtop b{font-size:22px; color:var(--accent)}
@@ -138,6 +140,9 @@
   .sec.collapsed .grid{display:none}
   .sec .scount{font-weight:600; color:var(--muted); font-size:11px}
   .sec .smeta{font-weight:600; color:var(--muted); font-size:11px}
+  .group-sep{display:flex; align-items:center; gap:10px; margin:18px 0 6px;
+    font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.08em}
+  .group-sep::before, .group-sep::after{content:""; flex:1; height:1px; background:var(--line)}
   .searchbar{gap:8px}
   #albumSearch{flex:1; min-width:160px; padding:8px 12px; border:1px solid var(--line);
     border-radius:8px; font:inherit; font-size:14px}
@@ -570,8 +575,32 @@ var TEAM_META = {
   POR:{group:"K",page:90}, COD:{group:"K",page:92}, UZB:{group:"K",page:94}, COL:{group:"K",page:96},
   ENG:{group:"L",page:98}, CRO:{group:"L",page:100},GHA:{group:"L",page:102},PAN:{group:"L",page:104}
 };
-function teamMetaShort(code){ var m = TEAM_META[code]; return m ? (" · " + m.group + " · p" + m.page) : ""; }
+function teamMetaShort(code){ var m = TEAM_META[code]; return m ? (" · " + m.group) : ""; }
 function teamMetaLong(code){ var m = TEAM_META[code]; return m ? (" · Grupo " + m.group + " · p" + m.page) : ""; }
+
+// Agrupa entries [{label, code, miss?, extra?}] por grupo Mundial (A-L).
+// Devuelve filas con la letra y los chips. Dentro de cada grupo: completos primero
+// (verde), faltantes después (rojo con conteo en extra). Orden alfabético dentro de cada subset.
+function groupChipsByMundial(entries){
+  var byGroup = {};
+  entries.forEach(function(e){
+    var g = (TEAM_META[e.code] || {}).group || "?";
+    (byGroup[g] = byGroup[g] || []).push(e);
+  });
+  var groups = Object.keys(byGroup).sort();
+  return groups.map(function(g){
+    var sorted = byGroup[g].slice().sort(function(a, b){
+      var am = a.miss ? 1 : 0, bm = b.miss ? 1 : 0;
+      if (am !== bm) return am - bm;          // completos primero
+      return a.label.localeCompare(b.label);  // luego alfabético
+    });
+    var chips = sorted.map(function(e){
+      return '<span class="tag' + (e.miss ? " miss" : "") + '">' + teamHTML(e.label) +
+        (e.extra ? ' · ' + e.extra : '') + '</span>';
+    }).join('');
+    return '<div class="group-row"><span class="group-label">' + g + ':</span>' + chips + '</div>';
+  }).join('');
+}
 
 // Bandera emoji por código (se ve en celular; en PC el navegador puede no dibujarla).
 var FLAGS = {
@@ -1195,25 +1224,13 @@ function specialSectionsPanel(){
 
 // Panel para una postal específica común a todos los 48 equipos (ej: escudo=1, foto=13).
 function specialStickerPanel(specialNum, title, panelId){
-  var have = [], miss = [];
-  COUNTRY_CODES.forEach(function(code){
-    var sec = SEC_BY_ID[code]; if (!sec) return;
-    var entry = { label: sec.label, code: code };
-    if (getCount(code, specialNum) >= 1) have.push(entry);
-    else miss.push(entry);
-  });
-  function chips(arr, cls){
-    return arr.map(function(e){
-      return '<span class="tag' + (cls ? " " + cls : "") + '">' + teamHTML(e.label) + teamMetaShort(e.code) + '</span>';
-    }).join("");
-  }
+  var all = COUNTRY_CODES.map(function(code){
+    var sec = SEC_BY_ID[code]; if (!sec) return null;
+    return { label: sec.label, code: code, miss: getCount(code, specialNum) < 1 };
+  }).filter(Boolean);
+  var have = all.filter(function(e){ return !e.miss; }).length;
   var n = COUNTRY_CODES.length;
-  var body =
-    '<div class="sub-title">Tienes (' + have.length + '):</div>' +
-    (have.length ? '<div class="tags">' + chips(have) + '</div>' : '<p class="empty">Ninguno aún.</p>') +
-    '<div class="sub-title">Faltan (' + miss.length + '):</div>' +
-    (miss.length ? '<div class="tags">' + chips(miss, "miss") + '</div>' : '<p class="empty">¡Todos completos!</p>');
-  return dashPanelHTML(panelId, title + ' (' + have.length + '/' + n + ')', body);
+  return dashPanelHTML(panelId, title + ' (' + have + '/' + n + ')', groupChipsByMundial(all));
 }
 
 function renderDashboard(data, cruce){
@@ -1249,13 +1266,10 @@ function renderDashboard(data, cruce){
     fourth;
 
   var casi = Object.keys(data.faltan)
-    .map(function(k){ return { team:k, n:data.faltan[k].length }; })
-    .filter(function(x){ return x.n >= 1 && x.n <= 2; })
-    .sort(function(a,b){ return a.n - b.n || a.team.localeCompare(b.team); });
+    .map(function(k){ return { label:k, code:labelCode(k), miss:true, extra:data.faltan[k].length }; })
+    .filter(function(x){ return x.extra >= 1 && x.extra <= 2 && TEAM_META[x.code]; });
   var casiHTML = casi.length
-    ? '<div class="tags">' + casi.map(function(x){
-        return '<span class="tag">' + teamHTML(x.team) + teamMetaShort(labelCode(x.team)) + ' · ' + x.n + '</span>';
-      }).join("") + '</div>'
+    ? groupChipsByMundial(casi)
     : '<p class="empty">Ninguno con 1–2 pendientes.</p>';
 
   // Países (equipos) completos vs faltantes: secciones de país.
@@ -1265,19 +1279,12 @@ function renderDashboard(data, cruce){
   var missTeams = SECTIONS.filter(function(sec){
     return isTeamSection(sec) && data.faltan[sec.label] && data.faltan[sec.label].length;
   });
-  var doneChips = doneTeams.length
-    ? '<div class="tags">' + doneTeams.map(function(sec){
-        return '<span class="tag">' + teamHTML(sec.label) + teamMetaShort(sec.id) + '</span>';
-      }).join("") + '</div>'
-    : '<p class="empty">Aún ningún equipo completo.</p>';
-  var missChips = missTeams.length
-    ? '<div class="tags">' + missTeams.map(function(sec){
-        return '<span class="tag miss">' + teamHTML(sec.label) + teamMetaShort(sec.id) + ' · ' + data.faltan[sec.label].length + '</span>';
-      }).join("") + '</div>'
-    : '<p class="empty">¡Ningún equipo con faltantes!</p>';
-  var equiposBody =
-    '<div class="sub-title">Completos (' + doneTeams.length + '):</div>' + doneChips +
-    '<div class="sub-title">Faltantes (' + missTeams.length + '):</div>' + missChips;
+  var allTeams = SECTIONS.filter(isTeamSection).map(function(sec){
+    var falt = data.faltan[sec.label];
+    if (falt && falt.length) return { label:sec.label, code:sec.id, miss:true, extra:falt.length };
+    return { label:sec.label, code:sec.id, miss:false };
+  });
+  var equiposBody = groupChipsByMundial(allTeams);
 
   var panels =
     '<div class="panel"><h3>Donde más te falta</h3>' + barsHTML(rankTeams(data.faltan, 8), 'f') + '</div>' +
@@ -2106,7 +2113,7 @@ function updateCollapseAllLabel(){
   b.title = allCollapsed ? "Expandir todo" : "Colapsar todo";
 }
 function renderAlbum(){
-  var html = "", shown = 0;
+  var html = "", shown = 0, prevGroup = null;
   SECTIONS.forEach(function(sec){
     var secMatch = sectionMatchesSearchText(sec);
     if (!secMatch) return;                  // no coincide con el texto buscado
@@ -2124,10 +2131,20 @@ function renderAlbum(){
     });
     if (!any) return;                       // oculta equipos sin coincidencias
     shown++;
+    // Separador entre grupos Mundiales (solo selecciones de país).
+    var tm = TEAM_META[sec.id];
+    if (tm){
+      if (tm.group !== prevGroup){
+        html += '<div class="group-sep">Grupo ' + tm.group + '</div>';
+        prevGroup = tm.group;
+      }
+    } else {
+      prevGroup = null;                     // reset al pasar por secciones especiales
+    }
     var cls = "sec" + (collapsedSecs[sec.id] ? " collapsed" : "");
-    var meta = teamMetaLong(sec.id);
+    var metaText = tm ? (' · p' + tm.page) : '';
     html += '<div class="' + cls + '" data-sid="' + sec.id + '"><h4>' + teamHTML(sec.label) +
-      (meta ? '<span class="smeta">' + meta + '</span>' : '') +
+      (metaText ? '<span class="smeta">' + metaText + '</span>' : '') +
       ' <span class="scount">' + have + '/' + sec.nums.length + '</span></h4>' +
       '<div class="grid">' + cells + '</div></div>';
   });
