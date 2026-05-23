@@ -215,8 +215,8 @@
   .credit a:hover{text-decoration:underline}
   .tabs{position:sticky; top:0; z-index:5; display:flex; gap:4px; overflow-x:auto; background:#fff;
     border-bottom:1px solid var(--line); padding:6px 8px; -webkit-overflow-scrolling:touch}
-  .tabs button{flex:0 0 auto; border:none; background:transparent; padding:11px 15px;
-    border-radius:8px 8px 0 0; font:inherit; font-size:14px; font-weight:700; color:var(--muted);
+  .tabs button{flex:0 0 auto; border:none; background:transparent; padding:10px 11px;
+    border-radius:8px 8px 0 0; font:inherit; font-size:13px; font-weight:700; color:var(--muted);
     cursor:pointer; white-space:nowrap; -webkit-tap-highlight-color:transparent}
   .tabs button.on{color:var(--accent); background:#eff6ff}
   main section[data-tab]{display:none}
@@ -224,10 +224,10 @@
   body[data-tab="album"] section[data-tab="album"],
   body[data-tab="resumen"] section[data-tab="resumen"],
   body[data-tab="intercambio"] section[data-tab="intercambio"]{display:block}
-  #btnOpenShare{margin-left:auto; border-left:1px solid var(--line); padding-left:14px !important;
+  #btnOpenShare{margin-left:auto; border-left:1px solid var(--line); padding-left:10px !important;
     color:var(--accent) !important; display:inline-flex; align-items:center}
   #btnOpenShare:hover{background:#eff6ff}
-  #btnOpenShare svg{display:block; width:22px; height:22px}
+  #btnOpenShare svg{display:block; width:20px; height:20px}
   #shareModal{display:none; position:fixed; inset:0; z-index:40; background:rgba(0,0,0,.55);
     align-items:flex-start; justify-content:center; padding:16px; overflow-y:auto}
   #shareModal.open{display:flex}
@@ -277,9 +277,9 @@
 
 <nav class="tabs no-print" id="tabbar">
   <button data-go="inicio">Inicio</button>
-  <button data-go="album">Mi álbum</button>
+  <button data-go="album">Álbum</button>
   <button data-go="resumen">Resumen</button>
-  <button data-go="intercambio">Intercambio</button>
+  <button data-go="intercambio">Cruce</button>
   <button id="btnOpenShare" type="button" title="Compartir" aria-label="Compartir"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></button>
 </nav>
 
@@ -318,10 +318,10 @@
     <p class="hint"><b>1. Para respaldar:</b> abrí el modal <b>Compartir</b> (ícono arriba a la derecha) y tocá <b>Compartir texto</b>. Guardá ese mensaje en WhatsApp/notas.</p>
     <p class="hint"><b>2. Para restaurar:</b> pegá ese texto en el cuadro de arriba y tocá <b>Importar</b>.</p>
 
-    <h2 class="sep">Compartir la app</h2>
+    <h2 class="sep">Compartir app</h2>
     <p class="hint"><b>100% gratis</b> · sin instalar · sin anuncios · sin cuenta. Funciona en Android, iPhone y compu. Tus datos quedan en tu teléfono.</p>
     <div class="row">
-      <button class="btn-share-app green" type="button">📤 Compartir la app</button>
+      <button class="btn-share-app green" type="button">📤 Compartir app</button>
     </div>
 
     <div id="blockReset">
@@ -339,7 +339,7 @@
     <div id="albumCtrls">
       <div class="modebar">
         <button class="mode lock" id="btnLock"></button>
-        <button class="mode btn-share-app" type="button" title="Compartir la app con un amigo">📤 Compartir la app</button>
+        <button class="mode btn-share-app" type="button" title="Compartir app con un amigo">📤 Compartir app</button>
       </div>
       <div class="modebar editmode">
         <button class="mode add on" id="btnAdd">+ Agregar</button>
@@ -414,7 +414,7 @@
         <button id="btnPrintCruceHtml" class="amber">Imprimir / Guardar PDF con diseño</button>
       </div>
       <div class="row">
-        <button class="mode btn-share-app" type="button">📤 Compartir la app con tu amigo</button>
+        <button class="mode btn-share-app" type="button">📤 Compartir app con tu amigo</button>
       </div>
     </div>
     <div id="cruceResult"></div>
@@ -489,7 +489,7 @@
     </div>
     <div class="promo">
       <p><b>¿Te sirvió la herramienta?</b> Pasala a tus amigos.</p>
-      <button class="btn-share-app green" type="button">📤 Compartir la app</button>
+      <button class="btn-share-app green" type="button">📤 Compartir app</button>
     </div>
   </div>
 </div>
@@ -849,7 +849,7 @@ function renderCruce(my, other){
     $("cruceResult").innerHTML =
       '<p class="empty">Carga el QR de la otra persona o pega su lista, y pulsa “Calcular intercambio”.</p>' +
       '<div class="promo"><p>¿Tu amigo no usa la app? Pasale el link y arman el intercambio juntos.</p>' +
-      '<button class="btn-share-app green" type="button">📤 Compartir la app</button></div>';
+      '<button class="btn-share-app green" type="button">📤 Compartir app</button></div>';
     if (acts) acts.style.display = "none";
     if (sim){ sim.style.display = "none"; resetSim(); }
     return;
@@ -1205,7 +1205,7 @@ function renderDashboard(data, cruce){
   }
 
   panels += '<div class="promo"><p>¿Le sirvió a alguien más? Pasale la herramienta a un amigo.</p>' +
-    '<button class="btn-share-app green" type="button">📤 Compartir la app</button></div>';
+    '<button class="btn-share-app green" type="button">📤 Compartir app</button></div>';
   $("dashPanels").innerHTML = panels;
 }
 
@@ -2072,8 +2072,8 @@ function setLock(locked){
   albumLocked = locked;
   var b = $("btnLock"), blk = $("albumBlock");
   if (b){
-    b.textContent = locked ? "🔒 Bloqueado — toca para editar"
-                           : "🔓 Editando — toca para bloquear";
+    b.textContent = locked ? "🔒 Bloqueado — toca editar"
+                           : "🔓 Editando — toca bloquear";
     b.classList.toggle("on", !locked);
   }
   if (blk) blk.classList.toggle("locked", locked);
