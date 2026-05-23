@@ -81,6 +81,16 @@
   .panels{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px}
   @media (max-width:700px){.panels{grid-template-columns:1fr}}
   .panel h3{margin:0 0 8px; font-size:13px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em}
+  .panel .sub-title{font-size:12px; font-weight:700; color:#334155; margin:10px 0 4px}
+  .panel .sub-row{font-size:13px; margin:4px 0; line-height:1.5; display:flex; flex-wrap:wrap; gap:6px; align-items:baseline}
+  .panel .sub-row b{font-weight:700; color:#0f172a}
+  .panel .sub-row .ok{color:#166534; font-weight:700}
+  .panel .sub-row .miss{color:#92400e}
+  .panel.collapsible h3{cursor:pointer; display:flex; align-items:center; justify-content:space-between;
+    -webkit-tap-highlight-color:transparent; user-select:none}
+  .panel.collapsible h3::after{content:"▼"; font-size:10px; color:var(--muted); margin-left:8px}
+  .panel.collapsible.collapsed h3::after{content:"▶"}
+  .panel.collapsible.collapsed > *:not(h3){display:none}
   .bar{display:flex; align-items:center; gap:8px; margin:4px 0; font-size:12.5px}
   .bar .bname{flex:0 0 150px; font-weight:600; font-size:11.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   .bar .btrack{flex:1; background:#eef2f7; border-radius:6px; height:16px; overflow:hidden}
@@ -512,7 +522,8 @@
 "use strict";
 
 var LS_MYNAME = "fifa26_myname", LS_OTHERNAME = "fifa26_othername",
-    LS_MODEL = "fifa26_model", LS_TAB = "fifa26_tab";
+    LS_MODEL = "fifa26_model", LS_TAB = "fifa26_tab",
+    LS_DASH_COLLAPSED = "fifa26_dash_collapsed";
 
 // URL pública de la herramienta y pitch corto, para promover el uso entre usuarios.
 var APP_URL = "https://roymendezcastro.github.io/album-fifa/";
@@ -1128,6 +1139,60 @@ function renderProgress(prog){
     ' equipos completos</div></div>';
 }
 
+// Estado colapsado de los paneles de Resumen. Default: equipos-faltantes expandido,
+// los demás colapsados. Persiste en localStorage.
+var DASH_DEFAULT_COLLAPSED = { "escudos-seleccion": true, "fotos-seleccion": true, "especiales": true };
+var dashCollapsed = (function(){
+  try { var s = JSON.parse(localStorage.getItem(LS_DASH_COLLAPSED)); if (s && typeof s === "object") return s; } catch(e){}
+  return Object.assign({}, DASH_DEFAULT_COLLAPSED);
+})();
+function dashPanelHTML(id, title, body){
+  var c = !!dashCollapsed[id];
+  return '<div class="panel collapsible' + (c ? " collapsed" : "") +
+    '" data-panel="' + id + '"><h3>' + title + '</h3>' + body + '</div>';
+}
+
+// Panel con las 4 secciones especiales (FWC + Coca-Cola): progreso y números faltantes.
+function specialSectionsPanel(){
+  var sections = SECTIONS.filter(function(s){ return !isTeamSection(s); });
+  var totalHave = 0, totalAll = 0;
+  var rows = sections.map(function(sec){
+    var have = 0, faltan = [];
+    sec.nums.forEach(function(n){
+      if (getCount(sec.id, n) >= 1) have++;
+      else faltan.push(n);
+    });
+    totalHave += have;
+    totalAll += sec.nums.length;
+    var status = faltan.length === 0
+      ? '<span class="ok">✓ Completo</span>'
+      : '<span class="miss">faltan ' + faltan.join(", ") + '</span>';
+    return '<div class="sub-row">' + teamHTML(sec.label) +
+           ' <b>' + have + '/' + sec.nums.length + '</b> · ' + status + '</div>';
+  }).join('');
+  return dashPanelHTML("especiales", 'FWC + Coca-Cola (' + totalHave + '/' + totalAll + ')', rows);
+}
+
+// Panel para una postal específica común a todos los 48 equipos (ej: escudo=1, foto=13).
+function specialStickerPanel(specialNum, title, panelId){
+  var have = [], miss = [];
+  COUNTRY_CODES.forEach(function(code){
+    var sec = SEC_BY_ID[code]; if (!sec) return;
+    if (getCount(code, specialNum) >= 1) have.push(sec.label);
+    else miss.push(sec.label);
+  });
+  function chips(arr){
+    return arr.map(function(lab){ return '<span class="tag">' + teamHTML(lab) + '</span>'; }).join("");
+  }
+  var n = COUNTRY_CODES.length;
+  var body =
+    '<div class="sub-title">Tienes (' + have.length + '):</div>' +
+    (have.length ? '<div class="tags">' + chips(have) + '</div>' : '<p class="empty">Ninguno aún.</p>') +
+    '<div class="sub-title">Faltan (' + miss.length + '):</div>' +
+    (miss.length ? '<div class="tags">' + chips(miss) + '</div>' : '<p class="empty">¡Todos completos!</p>');
+  return dashPanelHTML(panelId, title + ' (' + have.length + '/' + n + ')', body);
+}
+
 function renderDashboard(data, cruce){
   // Estado vacío: sin datos del álbum, mostrar guía.
   if (!Object.keys(model.own).length){
@@ -1177,23 +1242,28 @@ function renderDashboard(data, cruce){
   var missTeams = SECTIONS.filter(function(sec){
     return isTeamSection(sec) && data.faltan[sec.label] && data.faltan[sec.label].length;
   });
-  var doneHTML = doneTeams.length
+  var doneChips = doneTeams.length
     ? '<div class="tags">' + doneTeams.map(function(sec){
         return '<span class="tag">' + teamHTML(sec.label) + '</span>';
       }).join("") + '</div>'
     : '<p class="empty">Aún ningún equipo completo.</p>';
-  var missHTML = missTeams.length
+  var missChips = missTeams.length
     ? '<div class="tags">' + missTeams.map(function(sec){
         return '<span class="tag">' + teamHTML(sec.label) + ' · ' + data.faltan[sec.label].length + '</span>';
       }).join("") + '</div>'
     : '<p class="empty">¡Ningún equipo con faltantes!</p>';
+  var equiposBody =
+    '<div class="sub-title">Completos (' + doneTeams.length + '):</div>' + doneChips +
+    '<div class="sub-title">Faltantes (' + missTeams.length + '):</div>' + missChips;
 
   var panels =
     '<div class="panel"><h3>Donde más te falta</h3>' + barsHTML(rankTeams(data.faltan, 8), 'f') + '</div>' +
     '<div class="panel"><h3>Lo que más puedes ofrecer</h3>' + barsHTML(rankTeams(data.repes, 8), 'r') + '</div>' +
     '<div class="panel"><h3>Casi completos (te falta 1–2)</h3>' + casiHTML + '</div>' +
-    '<div class="panel"><h3>Equipos faltantes (' + missTeams.length + '/' + COUNTRY_CODES.length + ')</h3>' + missHTML + '</div>' +
-    '<div class="panel"><h3>Equipos completos (' + doneTeams.length + '/' + COUNTRY_CODES.length + ')</h3>' + doneHTML + '</div>';
+    dashPanelHTML("equipos", 'Equipos (' + doneTeams.length + '/' + COUNTRY_CODES.length + ')', equiposBody) +
+    specialStickerPanel("1", "Escudos de selección", "escudos-seleccion") +
+    specialStickerPanel("13", "Fotos de selección", "fotos-seleccion") +
+    specialSectionsPanel();
 
   if (cruce){
     var ld = countAll(cruce.leDoy), md = countAll(cruce.meDa);
@@ -2218,6 +2288,16 @@ window.addEventListener("DOMContentLoaded", function(){
     tabBtns[ti].addEventListener("click", function(){ setTab(this.getAttribute("data-go")); });
   }
   $("btnOpenShare").addEventListener("click", openShareModal);
+  // Toggle de paneles colapsables en Resumen.
+  $("dashPanels").addEventListener("click", function(e){
+    var h = e.target.closest ? e.target.closest(".panel.collapsible h3") : null;
+    if (!h) return;
+    var p = h.parentNode;
+    var id = p.getAttribute("data-panel");
+    dashCollapsed[id] = !dashCollapsed[id];
+    p.classList.toggle("collapsed", !!dashCollapsed[id]);
+    localStorage.setItem(LS_DASH_COLLAPSED, JSON.stringify(dashCollapsed));
+  });
   $("btnShareClose").addEventListener("click", closeShareModal);
   function shareTheApp(btn){
     if (navigator.share){
