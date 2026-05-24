@@ -1848,7 +1848,8 @@ var PDF_C = {
 };
 function rgb(c){ return c[0].toFixed(3)+" "+c[1].toFixed(3)+" "+c[2].toFixed(3); }
 
-function secItems(map, repeatByCount, bullet){
+function secItems(map, repeatByCount, bullet, wrapAt, col){
+  wrapAt = wrapAt || 88;
   var L = [];
   SECTIONS.forEach(function(s){
     var arr = map[s.label];
@@ -1860,83 +1861,140 @@ function secItems(map, repeatByCount, bullet){
         for (var k = 0; k < sob; k++) nums.push(n);
       } else nums.push(n);
     });
-    var full = teamParts(s.label).name + ":  " + nums.join(", ");
-    pdfWrap(full, 88).forEach(function(ln, idx){
+    var meta = TEAM_META[s.id];
+    var label = teamParts(s.label).name + (meta ? " · p" + meta.page : "");
+    var full = label + ":  " + nums.join(", ");
+    pdfWrap(full, wrapAt).forEach(function(ln, idx){
       L.push({ text: ln, size: 10, color: PDF_C.ink,
-               bullet: idx ? null : bullet, indent: idx ? 14 : 0 });
+               bullet: idx ? null : bullet, indent: idx ? 14 : 0, col: col });
     });
   });
-  if (!L.length) L.push({ text: "(ninguna)", size: 10, color: PDF_C.muted });
+  if (!L.length) L.push({ text: "(ninguna)", size: 10, color: PDF_C.muted, col: col });
   return L;
 }
+// Devuelve { header:[...], left:[...], right:[...], footer:[...] }.
+// header/footer son full-width; left/right son columnas paralelas en el cuerpo.
 function buildPdfLines(mode){
   var album = (lastMy && lastMy.albumTitle) || "Álbum FIFA 2026";
-  var L = [];
+  var header = [], left = [], right = [], footer = [];
+  var COL_WRAP = 42;
   if (mode === "cruce" && lastCruce){
     var A = getMyName() || "Yo", B = getOtherName() || "La otra persona";
     var nD = countAll(lastCruce.leDoy), nR = countAll(lastCruce.meDa);
-    L.push({ text: "Intercambio", size: 17, banner: PDF_C.blue });
-    L.push({ text: album, size: 10, color: PDF_C.muted });
-    L.push({ text: "Entre: " + A + " y " + B + "  ·  " + nowText(), size: 10, color: PDF_C.muted });
-    L.push({ text: A + " entrega " + nD + "   ·   recibe " + nR, size: 11, bold: true, color: PDF_C.ink });
-    pdfWrap(NOTE_SHORT, 96).forEach(function(t){ L.push({ text: t, size: 8, color: PDF_C.muted }); });
-    L.push({ rule: true });
-    L.push({ text: A + " le da a " + B + "  (" + nD + ")", size: 13, bold: true, color: PDF_C.green, gap: 4 });
-    secItems(lastCruce.leDoy, false, PDF_C.green).forEach(function(x){ L.push(x); });
-    L.push({ rule: true, gap: 4 });
-    L.push({ text: B + " le da a " + A + "  (" + nR + ")", size: 13, bold: true, color: PDF_C.amber, gap: 4 });
-    secItems(lastCruce.meDa, false, PDF_C.amber).forEach(function(x){ L.push(x); });
+    header.push({ text: "Intercambio — " + album, size: 17, banner: PDF_C.blue });
+    header.push({ text: "Entre: " + A + " y " + B + "   ·   " + nowText() +
+      "   ·   " + A + " entrega " + nD + ", recibe " + nR, size: 10, color: PDF_C.ink });
+    pdfWrap(NOTE_SHORT, 110).forEach(function(t){ header.push({ text: t, size: 8, color: PDF_C.muted }); });
+    header.push({ rule: true });
+    left.push({ text: A + " le da a " + B + "  (" + nD + ")", size: 12, bold: true, color: PDF_C.green, gap: 4, col: "left" });
+    secItems(lastCruce.leDoy, false, PDF_C.green, COL_WRAP, "left").forEach(function(x){ left.push(x); });
+    right.push({ text: B + " le da a " + A + "  (" + nR + ")", size: 12, bold: true, color: PDF_C.amber, gap: 4, col: "right" });
+    secItems(lastCruce.meDa, false, PDF_C.amber, COL_WRAP, "right").forEach(function(x){ right.push(x); });
   } else {
     var prog = lastMy ? computeProgress(lastMy) : null;
-    L.push({ text: "Gestor de Álbum FIFA 2026", size: 17, banner: PDF_C.blue });
-    L.push({ text: album, size: 10, color: PDF_C.muted });
-    L.push({ text: "Propietario: " + (getMyName() || "-") + "   ·   " + nowText(), size: 10, color: PDF_C.ink });
-    if (prog) L.push({ text: "Progreso: " + prog.pct + "%  (tengo " + prog.have +
-      " de " + prog.total + ", faltan " + prog.missing + ")", size: 11, bold: true, color: PDF_C.ink });
-    L.push({ rule: true });
-    L.push({ text: "FALTANTES", size: 13, bold: true, color: PDF_C.amber, gap: 4 });
-    secItems(lastMy ? lastMy.faltan : {}, false, PDF_C.amber).forEach(function(x){ L.push(x); });
-    L.push({ rule: true, gap: 4 });
-    L.push({ text: "REPETIDAS", size: 13, bold: true, color: PDF_C.green, gap: 4 });
-    secItems(lastMy ? lastMy.repes : {}, true, PDF_C.green).forEach(function(x){ L.push(x); });
+    var nF = lastMy ? countAll(lastMy.faltan) : 0;
+    var nR2 = lastMy ? countAll(lastMy.repes) : 0;
+    header.push({ text: "Gestor de Álbum FIFA 2026 — " + album, size: 17, banner: PDF_C.blue });
+    var metaLine = "Propietario: " + (getMyName() || "-") + "   ·   " + nowText();
+    if (prog) metaLine += "   ·   Progreso " + prog.pct + "% (" + prog.have +
+      "/" + prog.total + ", faltan " + prog.missing + ")";
+    header.push({ text: metaLine, size: 10, color: PDF_C.ink });
+    header.push({ rule: true });
+    left.push({ text: "FALTANTES  (" + nF + ")", size: 12, bold: true, color: PDF_C.amber, gap: 4, col: "left" });
+    secItems(lastMy ? lastMy.faltan : {}, false, PDF_C.amber, COL_WRAP, "left").forEach(function(x){ left.push(x); });
+    right.push({ text: "REPETIDAS  (" + nR2 + ")", size: 12, bold: true, color: PDF_C.green, gap: 4, col: "right" });
+    secItems(lastMy ? lastMy.repes : {}, true, PDF_C.green, COL_WRAP, "right").forEach(function(x){ right.push(x); });
   }
-  L.push({ rule: true, gap: 4 });
-  L.push({ text: APP_PITCH, size: 8, color: PDF_C.muted });
-  L.push({ text: APP_URL, size: 8, color: PDF_C.muted });
-  L.push({ text: "Generado con la herramienta de Roy Méndez Castro", size: 8, color: PDF_C.muted });
-  return L;
+  footer.push({ rule: true, gap: 4 });
+  footer.push({ text: APP_PITCH, size: 8, color: PDF_C.muted });
+  footer.push({ text: APP_URL + "   ·   Por Roy Méndez Castro", size: 8, color: PDF_C.muted });
+  return { header: header, left: left, right: right, footer: footer };
 }
 function buildPdf(mode){
-  var lines = buildPdfLines(mode), L = 36, R = 576;
-  var pages = [], cur = [], y = 760;
+  var sects = buildPdfLines(mode);
+  var L = 36, R = 576;
+  var COL_MID = (L + R) / 2;                  // 306
+  var COL_GAP = 12;
+  var LX = L;                                  // left col base x
+  var RX = COL_MID + COL_GAP / 2;              // right col base x (≈312)
+  var COL_W = (R - L) / 2 - COL_GAP / 2;       // ≈264 each
+
   function step(it){
-    if (it.rule) return 12 + (it.gap || 0);
-    if (it.banner) return it.size + 22 + (it.gap || 0);
-    return it.size + 6 + (it.gap || 0);
+    if (it.rule) return 8 + (it.gap || 0);
+    if (it.banner) return it.size + 12 + (it.gap || 0);
+    return it.size + 5 + (it.gap || 0);
   }
-  for (var i = 0; i < lines.length; i++){
-    var it = lines[i], st = step(it);
-    if (y - st < 48){ pages.push(cur); cur = []; y = 760; }
+  function draw(it, x, w, y){
+    // x = base x (col), w = col width. Returns array of PDF ops.
+    var ops = [];
     if (it.rule){
-      cur.push(rgb(PDF_C.rule) + " RG 0.8 w " + L + " " + y.toFixed(1) +
-        " m " + R + " " + y.toFixed(1) + " l S");
+      ops.push(rgb(PDF_C.rule) + " RG 0.8 w " + x + " " + y.toFixed(1) +
+        " m " + (x + w) + " " + y.toFixed(1) + " l S");
     } else if (it.banner){
-      cur.push(rgb(it.banner) + " rg " + L + " " + (y - 6).toFixed(1) +
-        " " + (R - L) + " " + (it.size + 13) + " re f");
-      cur.push("1 1 1 rg BT /F2 " + it.size + " Tf " + (L + 8) + " " +
+      ops.push(rgb(it.banner) + " rg " + x + " " + (y - 6).toFixed(1) +
+        " " + w + " " + (it.size + 13) + " re f");
+      ops.push("1 1 1 rg BT /F2 " + it.size + " Tf " + (x + 8) + " " +
         y.toFixed(1) + " Td (" + pdfText(it.text) + ") Tj ET");
     } else if (it.text !== undefined){
-      var tx = 42 + (it.indent || 0);
+      var tx = x + 6 + (it.indent || 0);
       if (it.bullet){
-        cur.push(rgb(it.bullet) + " rg 38 " + (y - 1).toFixed(1) + " 5 5 re f");
-        tx = 50;
+        ops.push(rgb(it.bullet) + " rg " + (x + 2) + " " + (y - 1).toFixed(1) + " 5 5 re f");
+        tx = x + 14;
       }
-      cur.push(rgb(it.color || PDF_C.ink) + " rg BT /F" + (it.bold ? 2 : 1) +
+      ops.push(rgb(it.color || PDF_C.ink) + " rg BT /F" + (it.bold ? 2 : 1) +
         " " + it.size + " Tf " + tx + " " + y.toFixed(1) +
         " Td (" + pdfText(it.text) + ") Tj ET");
     }
-    y -= st;
+    return ops;
   }
+
+  var pages = [], cur = [], y = 760;
+  // Header full-width
+  sects.header.forEach(function(it){
+    var st = step(it);
+    if (y - st < 48){ pages.push(cur); cur = []; y = 760; }
+    draw(it, L, R - L, y).forEach(function(op){ cur.push(op); });
+    y -= st;
+  });
+  var colStartY = y - 4;
+
+  // Two-column body. Cada página fresca: ambas columnas arrancan a 760.
+  var leftQ = sects.left.slice(), rightQ = sects.right.slice();
+  while (leftQ.length || rightQ.length){
+    var yL = colStartY, yR = colStartY;
+    while (leftQ.length){
+      var itL = leftQ[0], stL = step(itL);
+      if (yL - stL < 48) break;
+      draw(itL, LX, COL_W, yL).forEach(function(op){ cur.push(op); });
+      yL -= stL;
+      leftQ.shift();
+    }
+    while (rightQ.length){
+      var itR = rightQ[0], stR = step(itR);
+      if (yR - stR < 48) break;
+      draw(itR, RX, COL_W, yR).forEach(function(op){ cur.push(op); });
+      yR -= stR;
+      rightQ.shift();
+    }
+    if (leftQ.length || rightQ.length){
+      pages.push(cur); cur = []; y = 760; colStartY = 760;
+      // Safety: si la cola sigue y la columna no avanzó (item enorme), descartar para evitar loop infinito.
+      if (yL === colStartY && yR === colStartY){
+        if (leftQ.length) leftQ.shift();
+        if (rightQ.length) rightQ.shift();
+      }
+    } else {
+      y = Math.min(yL, yR);
+    }
+  }
+
+  // Footer full-width al final
+  sects.footer.forEach(function(it){
+    var st = step(it);
+    if (y - st < 36){ pages.push(cur); cur = []; y = 760; }
+    draw(it, L, R - L, y).forEach(function(op){ cur.push(op); });
+    y -= st;
+  });
   if (cur.length || !pages.length) pages.push(cur);
 
   var body = "%PDF-1.4\n", off = [];
